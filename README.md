@@ -5,17 +5,22 @@ Sistema de Punto de Venta (POS) moderno y optimizado para Windows, con arquitect
 ## 🚀 Guía de Inicio Rápido
 
 ### Prerrequisitos
+
 - **Node.js**: v18 o superior.
 - **PostgreSQL**: Instancia local configurada.
 
 ### Instalación Completa
+
 1. Clonar el repositorio.
 2. Instalar dependencias en todos los módulos:
+
    ```bash
    npm run install:all
    ```
+
 3. Configurar el archivo `.env` en la carpeta `backend/` con tus credenciales de base de datos.
 4. Inicializar la base de datos:
+
    ```bash
    cd backend
    npx prisma migrate dev
@@ -34,12 +39,14 @@ Sistema de Punto de Venta (POS) moderno y optimizado para Windows, con arquitect
 ## 📦 Producción y Despliegue
 
 Para generar los instaladores del sistema:
+
 1. **Generar Ejecutable Desktop**: `npm run desktop:exe`
 2. **Generar Instalador Backend**: `npm run backend:installer`
 
 ## 📂 Documentación Adicional
+
 - [Documentación de la API](API_DOCUMENTATION.md)
 - [Guía de Instalación del Backend](BACKEND_INSTALLER_GUIDE.md)
 
 ---
-© 2026 Fatboy POS. Todos los derechos reservados.
+© 2026 Fatboy POS. Todos los derechos reservados. alonzo
