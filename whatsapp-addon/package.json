@@ -1,0 +1,39 @@
+{
+  "name": "fatboy-whatsapp-addon",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Addon externo de WhatsApp para Fatboy POS con Electron, React, Vite y Baileys.",
+  "main": "electron/main.cjs",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -n \"RENDERER,ELECTRON\" -c \"green,yellow\" \"vite\" \"scripts\\start-electron-dev.cmd\"",
+    "renderer": "vite",
+    "server:node": "node scripts\\start-node-server.cjs",
+    "rebuild:native": "electron-rebuild -f -w better-sqlite3",
+    "validate:ui": "node scripts\\validate-ui.cjs",
+    "build": "tsc && vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 4180",
+    "start": "concurrently -n \"PREVIEW,ELECTRON\" -c \"green,yellow\" \"vite preview --host 127.0.0.1 --port 4180 --strictPort\" \"scripts\\start-electron-preview.cmd\""
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.18",
+    "better-sqlite3": "^12.9.0",
+    "qrcode": "^1.5.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "socket.io-client": "^4.8.3"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^4.0.3",
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^8.2.2",
+    "electron": "^37.10.3",
+    "playwright": "^1.59.1",
+    "typescript": "^5.8.2",
+    "vite": "^6.2.0",
+    "wait-on": "^8.0.3"
+  }
+}

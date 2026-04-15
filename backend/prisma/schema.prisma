@@ -1,0 +1,560 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Role {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
+  description String?
+  users       User[]
+
+  @@map("roles")
+}
+
+model User {
+  id                           Int                   @id @default(autoincrement())
+  name                         String
+  email                        String                @unique
+  password                     String
+  tabletPin                    String?               @unique @map("tablet_pin")
+  loginAttempts                Int                   @default(0) @map("login_attempts")
+  lockoutUntil                 DateTime?             @map("lockout_until")
+  roleId                       Int                   @map("role_id")
+  isActive                     Boolean               @default(true) @map("is_active")
+  createdAt                    DateTime              @default(now()) @map("created_at")
+  cashMovements                CashMovement[]        @relation("CreatedBy")
+  cashShifts                   CashShift[]
+  authorizedDiscounts          Discount[]            @relation("AuthorizedBy")
+  createdAttendanceRecords     EmployeeAttendance[]  @relation("EmployeeAttendanceCreatedBy")
+  createdEmployeeLedgerEntries EmployeeLedgerEntry[] @relation("EmployeeLedgerCreatedBy")
+  createdPrintTemplates        PrintTemplate[]       @relation("PrintTemplateCreatedBy")
+  updatedPrintTemplates        PrintTemplate[]       @relation("PrintTemplateUpdatedBy")
+  activatedPrintTemplates      PrintTemplate[]       @relation("PrintTemplateActivatedBy")
+  requestedPrintJobs           PrintJob[]            @relation("PrintJobRequestedBy")
+  printJobEvents               PrintJobEvent[]
+  orders                       Order[]
+  waiterOrders                 Order[]               @relation("WaiterOrders")
+  closedPayrolls               Payroll[]             @relation("PayrollClosedBy")
+  role                         Role                  @relation(fields: [roleId], references: [id])
+
+  @@map("users")
+}
+
+model Employee {
+  id            Int                   @id @default(autoincrement())
+  fullName      String                @map("full_name")
+  employeeCode  String                @unique @map("employee_code") @db.VarChar(4)
+  weeklySalary  Decimal               @map("weekly_salary") @db.Decimal(10, 2)
+  isActive      Boolean               @default(true) @map("is_active")
+  notes         String?
+  createdAt     DateTime              @default(now()) @map("created_at")
+  updatedAt     DateTime              @updatedAt @map("updated_at")
+  attendance    EmployeeAttendance[]
+  ledgerEntries EmployeeLedgerEntry[]
+  payrolls      Payroll[]
+
+  @@map("employees")
+}
+
+model EmployeeAttendance {
+  id             Int      @id @default(autoincrement())
+  employeeId     Int      @map("employee_id")
+  workDate       DateTime @map("work_date") @db.Date
+  hoursWorked    Decimal  @map("hours_worked") @db.Decimal(5, 2)
+  regularHours   Decimal  @map("regular_hours") @db.Decimal(5, 2)
+  overtimeHours  Decimal  @map("overtime_hours") @db.Decimal(5, 2)
+  overtimeRate   Decimal  @map("overtime_rate") @db.Decimal(10, 2)
+  overtimePay    Decimal  @map("overtime_pay") @db.Decimal(10, 2)
+  notes          String?
+  createdByUserId Int     @map("created_by_user_id")
+  payrollId      Int?     @map("payroll_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  createdBy      User     @relation("EmployeeAttendanceCreatedBy", fields: [createdByUserId], references: [id])
+  employee       Employee @relation(fields: [employeeId], references: [id])
+  payroll        Payroll? @relation(fields: [payrollId], references: [id])
+
+  @@unique([employeeId, workDate])
+  @@index([employeeId, workDate])
+  @@index([payrollId])
+  @@map("employee_attendance")
+}
+
+model EmployeeLedgerEntry {
+  id              Int                       @id @default(autoincrement())
+  employeeId      Int                       @map("employee_id")
+  type            EmployeeLedgerEntryType
+  amount          Decimal                   @db.Decimal(10, 2)
+  description     String?
+  entryDate       DateTime                  @default(now()) @map("entry_date")
+  status          EmployeeLedgerEntryStatus @default(PENDING)
+  createdByUserId Int                       @map("created_by_user_id")
+  payrollId       Int?                      @map("payroll_id")
+  productSnapshot Json?                     @map("product_snapshot")
+  createdAt       DateTime                  @default(now()) @map("created_at")
+  updatedAt       DateTime                  @updatedAt @map("updated_at")
+  createdBy       User                      @relation("EmployeeLedgerCreatedBy", fields: [createdByUserId], references: [id])
+  employee        Employee                  @relation(fields: [employeeId], references: [id])
+  payroll         Payroll?                  @relation(fields: [payrollId], references: [id])
+
+  @@index([employeeId, status, entryDate])
+  @@index([payrollId])
+  @@map("employee_ledger_entries")
+}
+
+model Payroll {
+  id                      Int                   @id @default(autoincrement())
+  employeeId              Int                   @map("employee_id")
+  periodStart             DateTime              @map("period_start")
+  periodEnd               DateTime              @map("period_end")
+  weeklySalarySnapshot    Decimal               @map("weekly_salary_snapshot") @db.Decimal(10, 2)
+  totalHoursWorked        Decimal               @map("total_hours_worked") @db.Decimal(10, 2)
+  totalRegularHours       Decimal               @map("total_regular_hours") @db.Decimal(10, 2)
+  totalOvertimeHours      Decimal               @map("total_overtime_hours") @db.Decimal(10, 2)
+  totalOvertimePay        Decimal               @map("total_overtime_pay") @db.Decimal(10, 2)
+  totalAdvances           Decimal               @map("total_advances") @db.Decimal(10, 2)
+  totalManualDebts        Decimal               @map("total_manual_debts") @db.Decimal(10, 2)
+  totalProductConsumption Decimal               @map("total_product_consumption") @db.Decimal(10, 2)
+  totalDeductions         Decimal               @map("total_deductions") @db.Decimal(10, 2)
+  netPay                  Decimal               @map("net_pay") @db.Decimal(10, 2)
+  closedByUserId          Int                   @map("closed_by_user_id")
+  closedAt                DateTime              @default(now()) @map("closed_at")
+  status                  PayrollStatus         @default(GENERATED)
+  createdAt               DateTime              @default(now()) @map("created_at")
+  updatedAt               DateTime              @updatedAt @map("updated_at")
+  attendanceRecords       EmployeeAttendance[]
+  ledgerEntries           EmployeeLedgerEntry[]
+  closedBy                User                  @relation("PayrollClosedBy", fields: [closedByUserId], references: [id])
+  employee                Employee              @relation(fields: [employeeId], references: [id])
+
+  @@index([employeeId, periodStart, periodEnd])
+  @@map("payrolls")
+}
+
+model Customer {
+  id        Int               @id @default(autoincrement())
+  name      String
+  phone     String?           @unique
+  notes     String?
+  addresses CustomerAddress[]
+  loyaltyAccount LoyaltyAccount?
+  loyaltyTransactions LoyaltyTransaction[]
+  orders    Order[]
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+
+  @@map("customers")
+}
+
+model CustomerAddress {
+  id             Int      @id @default(autoincrement())
+  customerId     Int      @map("customer_id")
+  label          String?
+  recipientName  String?  @map("recipient_name")
+  phone          String?
+  street         String
+  exteriorNumber String?  @map("exterior_number")
+  interiorNumber String?  @map("interior_number")
+  neighborhood   String?  @map("neighborhood")
+  city           String?
+  state          String?
+  postalCode     String?  @map("postal_code")
+  references     String?
+  isDefault      Boolean  @default(false) @map("is_default")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  customer       Customer @relation(fields: [customerId], references: [id])
+  orders         Order[]
+
+  @@index([customerId, isDefault])
+  @@map("customer_addresses")
+}
+
+model Category {
+  id           Int       @id @default(autoincrement())
+  name         String
+  displayOrder Int       @default(0) @map("display_order")
+  isActive     Boolean   @default(true) @map("is_active")
+  products     Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id          Int               @id @default(autoincrement())
+  name        String
+  description String?
+  price       Decimal           @db.Decimal(10, 2)
+  categoryId  Int               @map("category_id")
+  imageUrl    String?           @map("image_url")
+  icon        String?
+  isAvailable Boolean           @default(true) @map("is_available")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  orderItems  OrderItem[]
+  modifiers   ProductModifier[]
+  redeemableProduct RedeemableProduct?
+  category    Category          @relation(fields: [categoryId], references: [id])
+
+  @@map("products")
+}
+
+model ProductModifier {
+  id                 Int                 @id @default(autoincrement())
+  name               String
+  price              Decimal             @db.Decimal(10, 2)
+  productId          Int                 @map("product_id")
+  orderItemModifiers OrderItemModifier[]
+  product            Product             @relation(fields: [productId], references: [id])
+
+  @@map("product_modifiers")
+}
+
+model Order {
+  id                      Int              @id @default(autoincrement())
+  orderNumber             String           @unique @map("order_number")
+  customerId              Int?             @map("customer_id")
+  customerAddressId       Int?             @map("customer_address_id")
+  customerName            String?          @map("customer_name")
+  customerPhoneSnapshot   String?          @map("customer_phone_snapshot")
+  deliveryAddressSnapshot Json?            @map("delivery_address_snapshot")
+  status                  String           @default("PENDING")
+  orderType               String           @map("order_type")
+  userId                  Int              @map("user_id")
+  createdAt               DateTime         @default(now()) @map("created_at")
+  paymentStatus           String           @default("PENDING") @map("payment_status")
+  shiftId                 Int?             @map("shift_id")
+  tableId                 Int?             @map("table_id")
+  waiterId                Int?             @map("waiter_id")
+  discounts     Discount[]
+  kitchenOrder  KitchenOrder?
+  items         OrderItem[]
+  customer      Customer?      @relation(fields: [customerId], references: [id])
+  customerAddress CustomerAddress? @relation(fields: [customerAddressId], references: [id])
+  shift         CashShift?    @relation(fields: [shiftId], references: [id])
+  table         Table?        @relation(fields: [tableId], references: [id])
+  user          User          @relation(fields: [userId], references: [id])
+  waiter        User?         @relation("WaiterOrders", fields: [waiterId], references: [id])
+  payments      Payment[]
+  loyaltyTransactions LoyaltyTransaction[]
+
+  @@index([customerId, createdAt])
+  @@index([customerAddressId])
+  @@map("orders")
+}
+
+model LoyaltyAccount {
+  id          Int      @id @default(autoincrement())
+  customerId  Int      @unique @map("customer_id")
+  points      Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  customer    Customer @relation(fields: [customerId], references: [id])
+
+  @@map("loyalty_accounts")
+}
+
+model LoyaltyTransaction {
+  id          Int      @id @default(autoincrement())
+  customerId  Int      @map("customer_id")
+  orderId     Int?     @map("order_id")
+  type        String
+  points      Int
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  customer    Customer @relation(fields: [customerId], references: [id])
+  order       Order?   @relation(fields: [orderId], references: [id])
+
+  @@index([customerId, createdAt])
+  @@index([orderId])
+  @@map("loyalty_transactions")
+}
+
+model RedeemableProduct {
+  id          Int      @id @default(autoincrement())
+  productId   Int      @unique @map("product_id")
+  pointsCost  Int      @map("points_cost")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  orderItems  OrderItem[]
+  product     Product  @relation(fields: [productId], references: [id])
+
+  @@index([isActive, pointsCost])
+  @@map("redeemable_products")
+}
+
+model Area {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  tables    Table[]
+
+  @@map("areas")
+}
+
+model Table {
+  id        Int      @id @default(autoincrement())
+  name      String
+  areaId    Int      @map("area_id")
+  status    String   @default("AVAILABLE")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  orders    Order[]
+  area      Area     @relation(fields: [areaId], references: [id])
+
+  @@map("tables")
+}
+
+model OrderItem {
+  id        Int                 @id @default(autoincrement())
+  orderId   Int                 @map("order_id")
+  productId Int                 @map("product_id")
+  redeemableProductId Int?      @map("redeemable_product_id")
+  quantity  Int
+  price     Decimal             @db.Decimal(10, 2)
+  notes     String?
+  status    String              @default("PENDING")
+  submittedAt DateTime?         @map("submitted_at")
+  submissionBatch Int?          @map("submission_batch")
+  modifiers OrderItemModifier[]
+  order     Order               @relation(fields: [orderId], references: [id])
+  product   Product             @relation(fields: [productId], references: [id])
+  redeemableProduct RedeemableProduct? @relation(fields: [redeemableProductId], references: [id])
+
+  @@map("order_items")
+}
+
+model OrderItemModifier {
+  id          Int              @id @default(autoincrement())
+  orderItemId Int              @map("order_item_id")
+  modifierId  Int?             @map("modifier_id")
+  name        String
+  price       Decimal          @db.Decimal(10, 2)
+  modifier    ProductModifier? @relation(fields: [modifierId], references: [id])
+  orderItem   OrderItem        @relation(fields: [orderItemId], references: [id])
+
+  @@map("order_item_modifiers")
+}
+
+model Payment {
+  id             Int      @id @default(autoincrement())
+  orderId        Int      @map("order_id")
+  shiftId        Int?     @map("shift_id")
+  paymentMethod  String   @map("payment_method")
+  paymentCurrency String  @default("MXN") @map("payment_currency")
+  amount         Decimal  @db.Decimal(10, 2)
+  receivedAmount Decimal  @map("received_amount") @db.Decimal(10, 2)
+  receivedAmountMxn Decimal? @map("received_amount_mxn") @db.Decimal(10, 2)
+  cashReceivedMxn Decimal? @default(0) @map("cash_received_mxn") @db.Decimal(10, 2)
+  cashReceivedUsd Decimal? @default(0) @map("cash_received_usd") @db.Decimal(10, 2)
+  exchangeRate  Decimal? @map("exchange_rate") @db.Decimal(10, 4)
+  changeAmount   Decimal  @map("change_amount") @db.Decimal(10, 2)
+  createdAt      DateTime @default(now()) @map("created_at")
+  order          Order    @relation(fields: [orderId], references: [id])
+  shift          CashShift? @relation(fields: [shiftId], references: [id])
+
+  @@index([shiftId, createdAt])
+  @@map("payments")
+}
+
+model CashShift {
+  id                Int            @id @default(autoincrement())
+  userId            Int            @map("user_id")
+  openingAmount     Decimal        @map("opening_amount") @db.Decimal(10, 2)
+  closingAmount     Decimal?       @map("closing_amount") @db.Decimal(10, 2)
+  closingUsdAmount  Decimal?       @map("closing_usd_amount") @db.Decimal(10, 2)
+  openedAt          DateTime       @default(now()) @map("opened_at")
+  closedAt          DateTime?      @map("closed_at")
+  status            String         @default("OPEN")
+  closingCardAmount Decimal?       @map("closing_card_amount") @db.Decimal(10, 2)
+  movements         CashMovement[]
+  payments          Payment[]
+  user              User           @relation(fields: [userId], references: [id])
+  orders            Order[]
+
+  @@map("cash_shifts")
+}
+
+model CashMovement {
+  id           Int       @id @default(autoincrement())
+  shiftId      Int       @map("shift_id")
+  movementType String    @map("movement_type")
+  amount       Decimal   @db.Decimal(10, 2)
+  reason       String?
+  createdBy    Int       @map("created_by")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  creator      User      @relation("CreatedBy", fields: [createdBy], references: [id])
+  shift        CashShift @relation(fields: [shiftId], references: [id])
+
+  @@map("cash_movements")
+}
+
+model Discount {
+  id                Int      @id @default(autoincrement())
+  orderId           Int      @map("order_id")
+  amount            Decimal  @db.Decimal(10, 2)
+  reason            String?
+  authorizedByAdmin Int      @map("authorized_by_admin")
+  createdAt         DateTime @default(now()) @map("created_at")
+  admin             User     @relation("AuthorizedBy", fields: [authorizedByAdmin], references: [id])
+  order             Order    @relation(fields: [orderId], references: [id])
+
+  @@map("discounts")
+}
+
+model KitchenOrder {
+  id          Int       @id @default(autoincrement())
+  orderId     Int       @unique @map("order_id")
+  status      String    @default("PENDING")
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  order       Order     @relation(fields: [orderId], references: [id])
+
+  @@map("kitchen_orders")
+}
+
+model SystemConfig {
+  id                     Int      @id @default(1)
+  taxEnabled             Boolean  @default(true) @map("tax_enabled")
+  taxRate                Decimal  @default(16.0) @map("tax_rate") @db.Decimal(5, 2)
+  updatedAt              DateTime @updatedAt @map("updated_at")
+  accentColor            String?  @map("accent_color")
+  inkColor               String?  @map("ink_color")
+  panelColor             String?  @map("panel_color")
+  paperColor             String?  @map("paper_color")
+  receiptAutoPrint       Boolean  @default(false) @map("receipt_auto_print")
+  receiptPaperWidth      String   @default("80") @map("receipt_paper_width")
+  receiptPrinterName     String?  @map("receipt_printer_name")
+  kitchenPrinterName     String?  @map("kitchen_printer_name")
+  kitchenPaperWidth      String   @default("80") @map("kitchen_paper_width")
+  receiptCutEnabled      Boolean  @default(true) @map("receipt_cut_enabled")
+  cashDrawerEnabled      Boolean  @default(false) @map("cash_drawer_enabled")
+  cashDrawerOpenOnCash   Boolean  @default(false) @map("cash_drawer_open_on_cash")
+  restaurantAddress      String?  @map("restaurant_address")
+  restaurantName         String?  @map("restaurant_name")
+  shiftEmailEnabled      Boolean  @default(false) @map("shift_email_enabled")
+  shiftEmailHost         String?  @map("shift_email_host")
+  shiftEmailPort         Int      @default(587) @map("shift_email_port")
+  shiftEmailSecure       Boolean  @default(false) @map("shift_email_secure")
+  shiftEmailUser         String?  @map("shift_email_user")
+  shiftEmailPassword     String?  @map("shift_email_password")
+  shiftEmailFrom         String?  @map("shift_email_from")
+  shiftEmailTo           String?  @map("shift_email_to")
+  shiftEmailCc           String?  @map("shift_email_cc")
+  whatsappAddonEnabled   Boolean  @default(false) @map("whatsapp_addon_enabled")
+
+  @@map("system_config")
+}
+
+model PrintTemplate {
+  id            Int       @id @default(autoincrement())
+  templateKey   String    @unique @map("template_key")
+  name          String
+  documentType  String    @map("document_type")
+  paperWidth    String    @map("paper_width")
+  version       Int       @default(1)
+  isActive      Boolean   @default(false) @map("is_active")
+  isDefault     Boolean   @default(false) @map("is_default")
+  sections      Json
+  printerRouting Json?    @map("printer_routing")
+  fixedTexts    Json?     @map("fixed_texts")
+  metadata      Json?
+  warnings      Json?
+  createdById   Int?      @map("created_by_id")
+  updatedById   Int?      @map("updated_by_id")
+  activatedById Int?      @map("activated_by_id")
+  activatedAt   DateTime? @map("activated_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  createdBy     User?     @relation("PrintTemplateCreatedBy", fields: [createdById], references: [id])
+  updatedBy     User?     @relation("PrintTemplateUpdatedBy", fields: [updatedById], references: [id])
+  activatedBy   User?     @relation("PrintTemplateActivatedBy", fields: [activatedById], references: [id])
+  printJobs     PrintJob[]
+
+  @@index([documentType, paperWidth, isActive])
+  @@map("print_templates")
+}
+
+model PrintJob {
+  id               String          @id @default(cuid())
+  documentType     String          @map("document_type")
+  entityType       String          @map("entity_type")
+  entityId         String          @map("entity_id")
+  templateId       Int?            @map("template_id")
+  status           String          @default("pending")
+  source           String          @default("SYSTEM")
+  printerName      String?         @map("printer_name")
+  paperWidth       String?         @map("paper_width")
+  copies           Int             @default(1)
+  attempts         Int             @default(0)
+  maxAttempts      Int             @default(3) @map("max_attempts")
+  lastError        String?         @map("last_error")
+  requestedById    Int?            @map("requested_by_id")
+  payloadSnapshot  Json?           @map("payload_snapshot")
+  renderedDocument Json?           @map("rendered_document")
+  metadata         Json?
+  printedAt        DateTime?       @map("printed_at")
+  failedAt         DateTime?       @map("failed_at")
+  cancelledAt      DateTime?       @map("cancelled_at")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+  requestedBy      User?           @relation("PrintJobRequestedBy", fields: [requestedById], references: [id])
+  template         PrintTemplate?  @relation(fields: [templateId], references: [id])
+  events           PrintJobEvent[]
+
+  @@index([status, createdAt])
+  @@index([documentType, entityType, entityId])
+  @@map("print_jobs")
+}
+
+model PrintJobEvent {
+  id          Int      @id @default(autoincrement())
+  printJobId  String   @map("print_job_id")
+  eventType   String   @map("event_type")
+  statusFrom  String?  @map("status_from")
+  statusTo    String?  @map("status_to")
+  message     String?
+  metadata    Json?
+  createdById Int?     @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  createdBy   User?    @relation(fields: [createdById], references: [id])
+  printJob    PrintJob @relation(fields: [printJobId], references: [id])
+
+  @@index([printJobId, createdAt])
+  @@map("print_job_events")
+}
+
+model ExternalOrder {
+  id              Int      @id @default(autoincrement())
+  externalSource  String   @map("external_source")
+  externalOrderId String?  @map("external_order_id")
+  customerName    String?  @map("customer_name")
+  payload         Json
+  status          String   @default("PENDING")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("external_orders")
+}
+
+enum EmployeeLedgerEntryType {
+  SALARY_ADVANCE
+  MANUAL_DEBT
+  PRODUCT_CONSUMPTION
+}
+
+enum EmployeeLedgerEntryStatus {
+  PENDING
+  SETTLED
+  CANCELLED
+}
+
+enum PayrollStatus {
+  GENERATED
+  PAID
+}

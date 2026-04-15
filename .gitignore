@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+whatsapp-addon/node_modules/
+
+# Build artifacts
+dist/
+build/
+out/
+Release/
+*.exe
+*.msi
+*.zip
+backend/dist/
+frontend/dist/
+whatsapp-addon/dist/
+desktop-out-*/
+installer-cache/
+installer-out/
+installer-staging/
+
+# Environment and secrets
+.env
+backend/.env
+frontend/.env
+whatsapp-addon/.env
+*.key
+*.pem
+
+# Logs
+*.log
+backend/*.log
+frontend/*.log
+electron/*.log
+
+# IDEs and System
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Large Project specific binaries
+installer/payload/
+*.sql
+backups/
+
+# Agents and temp
+.agents/
+skills-lock.json

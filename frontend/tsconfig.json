@@ -1,0 +1,47 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false,
+    "module": "ESNext",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "allowJs": true,
+    "jsx": "react-jsx",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    },
+    "allowImportingTsExtensions": true,
+    "noEmit": true
+  },
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "src/views/DailyReport.tsx",
+    "src/views/Dashboard.tsx",
+    "src/views/Employees.tsx",
+    "src/views/Kitchen.tsx",
+    "src/views/Login.tsx",
+    "src/views/POS.tsx",
+    "src/views/POS_backup.tsx",
+    "src/views/Products.tsx",
+    "src/views/SalesHistory.tsx",
+    "src/views/Settings.tsx",
+    "src/views/Shifts.tsx",
+    "src/views/TableDetail.tsx",
+    "src/views/Tables.tsx",
+    "src/views/Users.tsx",
+    "src/hooks/hooks",
+    "src/store/store"
+  ]
+}
