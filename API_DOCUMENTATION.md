@@ -1,235 +1,112 @@
-# Documentacion de la API - Fatboy Restaurant POS
+# Documentacion de la API Actualizada - Fatboy POS
 
-Referencia funcional resumida de los endpoints principales del sistema POS.
+Este documento refleja el estado real y actualizado de los endpoints disponibles en el backend de Fatboy POS, incluyendo los módulos de fidelización, nómina, checador digital y el nuevo centro de plantillas de impresión.
 
-## Acceso
+---
 
-- Swagger UI: `http://localhost:3000/api/docs`
-- JSON OpenAPI: `http://localhost:3000/api/docs-json`
-- Prefijo global: `/api`
-- Puerto por defecto: `3000`
+## 🔐 Autenticación y Acceso
 
-## Autenticacion
+- **Swagger UI**: `http://localhost:3000/api/docs`
+- **Prefijo global**: `/api`
+- **Autenticación**: JWT mediante Header `Authorization: Bearer <TOKEN>`.
 
-### `POST /api/auth/login`
+### Endpoints
 
-Inicia sesion y devuelve JWT.
+- `POST /auth/login`: Login general (Admin/Cajero).
+- `POST /auth/waiter-pin-login`: Login por PIN para Meseros.
 
-Ejemplo:
+---
 
-```json
-{
-  "username": "usuario",
-  "password": "password123"
-}
-```
+## 📦 Órdenes y POS
 
-## Reglas globales clave
+### Órdenes (`/orders`)
 
-- Los endpoints operativos usan JWT.
-- El acceso se controla tambien por rol.
-- No se pueden crear pedidos ni registrar pagos sin turno abierto.
-- El cierre de turno se bloquea solo por cuentas con saldo pendiente.
-- Una comanda pagada puede seguir activa en KDS y no bloquea cierre de turno.
-- El KDS no se limpia por pago ni por cierre de turno; solo cambia por accion de cocina.
+- `POST /`: Crear orden (`DINE_IN`, `TAKE_AWAY`, `DELIVERY`).
+- `GET /open`: Lista de cuentas abiertas.
+- `GET /active`: Lista de pedidos en preparación.
+- `PATCH /:id/items`: Agregar productos a una orden existente.
+- `PATCH /:id/status`: Cambiar estado (IN_PROGRESS -> READY -> CLOSED).
+- `POST /:id/print`: Solicitar impresión de cuenta.
+- `POST /maintenance/clear-all`: **[ADMIN]** Borrado total de historial de órdenes.
 
-## Ordenes
+### Pagos (`/payments`)
 
-### `POST /api/orders`
+- `POST /`: Registrar pago (Soporta múltiples monedas y métodos).
+- `GET /order/:orderId`: Consultar pagos de una orden.
 
-Roles: `ADMIN`, `CAJERO`, `MESERO`
+---
 
-Crea una orden.
+## 👥 Empleados y Nómina
 
-Reglas principales:
+### Gestión de Empleados (`/employees`)
 
-- `DINE_IN` requiere mesa y mesero.
-- `TAKE_AWAY` requiere pago inmediato.
-- `DELIVERY` no requiere pago inmediato.
-- `DELIVERY` sale a produccion sin cobro previo.
-- `DELIVERY` puede capturarse con cliente/domicilio registrado o con datos manuales.
+- `GET /`: Listar todos los empleados operativos.
+- `GET /basic-list`: Lista simplificada para el Checador Digital.
+- `POST /`: Crear nuevo empleado.
+- `PATCH /:id`: Editar datos del empleado.
 
-Estados operativos relevantes:
+### Checador y Control de Asistencia
 
-- Generales: `OPEN`, `IN_PROGRESS`, `READY`, `CLOSED`, `CANCELLED`
-- Delivery: `OPEN`, `IN_PROGRESS`, `READY`, `OUT_FOR_DELIVERY`, `DELIVERED`, `CLOSED`, `CANCELLED`
+- `GET /:id/attendance`: Historial de entradas/salidas.
+- `POST /:id/attendance`: Registrar entrada, salida y horas extra.
 
-### `GET /api/orders/open`
+### Libro Mayor (Descuentos y Adelantos)
 
-Roles: `ADMIN`, `SUPERVISOR`, `CAJERO`, `MESERO`
+- `GET /:id/ledger`: Ver historial de movimientos financieros del empleado.
+- `POST /:id/ledger/advance`: Registrar adelanto de sueldo (Caja).
+- `POST /:id/ledger/debt`: Registrar deuda manual (Faltantes, etc).
+- `POST /:id/ledger/consumption`: Registrar consumo interno de alimentos.
 
-Obtiene cuentas abiertas. Acepta `orderType` opcional.
+### Nóminas (`/payrolls`)
 
-### `GET /api/orders/active`
+- `GET /`: Historial de nóminas cerradas.
+- `GET /employees/:id/payroll-preview`: Previsualizar nómina actual (Cálculo de horas vs descuentos).
+- `POST /employees/:id/payrolls/close`: Saldar y cerrar periodo de nómina.
+- `PATCH /:id/mark-paid`: Marcar una nómina como liquidada físicamente.
 
-Roles: `ADMIN`, `SUPERVISOR`, `CAJERO`, `COCINA`, `MESERO`
+---
 
-Obtiene pedidos activos.
+## 💎 Fidelización (Loyalty)
 
-### `GET /api/orders/:id`
+- `POST /customers/find-or-create`: Buscar cliente por teléfono; si no existe, lo crea automáticamente.
+- `GET /customers/phone/:phone`: Obtener perfil de puntos por teléfono.
+- `GET /customers/:id/points`: Consultar saldo actual de puntos.
+- `POST /loyalty/redeem`: Canje directo de puntos (Descuento monetario).
+- `POST /loyalty/redeem-product`: Canje de puntos por un producto específico (Vale por producto).
 
-Roles: `ADMIN`, `SUPERVISOR`, `CAJERO`, `COCINA`, `MESERO`
+---
 
-Detalle de una orden.
+## 🖨️ Centro de Impresión
 
-### `PATCH /api/orders/:id/items`
+### Plantillas (`/print-templates`)
 
-Roles: `ADMIN`, `CAJERO`, `MESERO`
+- `GET /types`: Documentos soportados (Ticket, Comanda, Reporte de Turno, Nómina).
+- `GET /`: Listar plantillas guardadas.
+- `POST /`: Crear nueva configuración de diseño.
+- `PATCH /:id`: Editar diseño de secciones, fuentes y alineación.
+- `POST /:id/duplicate`: Clonar una plantilla existente.
+- `POST /:id/activate`: Establecer como plantilla por defecto para un ancho de papel (58mm/80mm).
+- `POST /preview`: Generar vista previa en texto RAW basada en datos reales o mock.
 
-Agrega productos a una cuenta abierta.
+### Trabajos de Impresión (`/print-jobs`)
 
-### `PATCH /api/orders/:id/status`
+- `GET /`: Monitorear estado de la cola de impresión.
+- `POST /reprint/:id`: Reintentar o duplicar un ticket fallido.
 
-Roles: `ADMIN`, `SUPERVISOR`, `COCINA`, `CAJERO`
+---
 
-Actualiza estado operativo.
+## 📊 Reportes y Auditoría (`/reports`)
 
-Reglas relevantes:
+- `GET /sales`: Historial detallado de ventas con filtros por fecha, turno o término de búsqueda.
+- `GET /summary`: Resumen ejecutivo diario o por turno específico (Métricas de ventas, productos top, etc).
 
-- No se puede cerrar una orden con saldo pendiente.
-- No se puede cancelar una orden con pagos registrados.
-- `DELIVERY` no puede cerrarse antes de `DELIVERED`.
+---
 
-### `POST /api/orders/:id/print`
+## 🔌 Integraciones Externas (`/external-orders`)
 
-Roles: `ADMIN`, `CAJERO`, `MESERO`
+- `POST /`: Recibir pedidos de WhatsApp (Vía Addon) u otras fuentes externas.
+- `GET /`: Monitorear pedidos pendientes de integración al POS.
+- `PATCH /:id/status`: Vincular o rechazar pedidos externos.
 
-Marca cuenta impresa para comedor.
-
-## Pagos
-
-### `POST /api/payments`
-
-Roles: `ADMIN`, `CAJERO`
-
-Registra pago sobre una orden.
-
-Reglas principales:
-
-- Requiere turno abierto del usuario que cobra.
-- No permite pagar orden cancelada o ya cerrada.
-- No permite cobrar mas del saldo pendiente.
-- El backend calcula el cambio.
-- Si es efectivo, registra movimiento de caja.
-- `TAKE_AWAY` exige liquidacion completa antes de producir si aun no tiene comanda.
-- `DELIVERY` puede liquidarse al final del reparto.
-- Una orden pagada no desaparece del KDS automaticamente.
-
-## Turnos de caja
-
-### `POST /api/cash-shifts/open`
-
-Roles: `ADMIN`, `CAJERO`
-
-Abre turno. Un usuario no puede tener dos turnos abiertos.
-
-### `GET /api/cash-shifts/current`
-
-Roles operativos autenticados segun flujo del frontend.
-
-Devuelve turno abierto del usuario.
-
-### `GET /api/cash-shifts/current/summary`
-
-Resumen del turno abierto.
-
-### `PATCH /api/cash-shifts/:id/close`
-
-Roles: `ADMIN`, `CAJERO`
-
-Cierra turno.
-
-Reglas principales:
-
-- `CAJERO` solo puede cerrar su propio turno.
-- `ADMIN` puede cerrar turnos ajenos.
-- Se bloquea si existe cualquier cuenta con saldo pendiente.
-- No se bloquea por comandas ya pagadas aunque sigan activas en KDS.
-- No fuerza cierre operativo de orden ni limpia el KDS.
-
-### `POST /api/cash-shifts/:id/movements`
-
-Roles: `ADMIN`, `CAJERO`
-
-Registra movimientos manuales de caja.
-
-Regla principal:
-
-- `CAJERO` no puede registrar movimientos en turno ajeno.
-
-## Cocina / KDS
-
-### `GET /api/kitchen/active`
-
-Roles: `ADMIN`, `COCINA`, `SUPERVISOR`
-
-Lista comandas activas.
-
-### `PATCH /api/kitchen/:id/status`
-
-Roles: `ADMIN`, `COCINA`
-
-Actualiza estado global de comanda.
-
-### `PATCH /api/kitchen/item/:itemId/status`
-
-Roles: `ADMIN`, `COCINA`
-
-Actualiza estado de item individual.
-
-Reglas relevantes:
-
-- La comanda sigue viva aunque la cuenta ya este pagada.
-- Solo cocina debe mover la comanda hasta su estado final.
-
-## Clientes
-
-### `GET /api/customers`
-
-Roles: `ADMIN`, `SUPERVISOR`, `CAJERO`, `MESERO`
-
-Soporta busqueda por telefono con `?phone=...`.
-
-### `POST /api/customers`
-
-Roles: `ADMIN`, `CAJERO`, `MESERO`
-
-Crea cliente.
-
-### `GET /api/customers/:id/addresses`
-
-Lista domicilios del cliente.
-
-### `POST /api/customers/:id/addresses`
-
-Registra domicilio del cliente.
-
-## Productos y catalogos
-
-### `GET /api/products`
-
-Roles: `ADMIN`, `SUPERVISOR`, `CAJERO`, `MESERO`
-
-Filtro opcional: `categoryId`
-
-### `POST|PATCH|DELETE /api/products`
-
-Roles: `ADMIN`
-
-### `GET /api/categories`
-
-Catalogo de categorias.
-
-### `GET /api/areas`
-
-Catalogo de areas.
-
-### `GET /api/tables`
-
-Lista mesas, opcionalmente por `areaId`.
-
-## Notas de negocio
-
-- `DINE_IN`: cuenta abierta en mesa, pago normalmente al final.
-- `TAKE_AWAY`: pago inmediato.
-- `DELIVERY`: cuenta abierta, produccion inmediata, reparto y cobro al final.
+---
+© 2026 Fatboy POS - Documentación técnica actualizada.
