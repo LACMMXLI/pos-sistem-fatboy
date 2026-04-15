@@ -5,15 +5,12 @@ frontend/node_modules/
 whatsapp-addon/node_modules/
 
 # Build artifacts
-dist/
 build/
 out/
 Release/
 *.exe
 *.msi
 *.zip
-backend/dist/
-frontend/dist/
 whatsapp-addon/dist/
 desktop-out-*/
 installer-cache/
