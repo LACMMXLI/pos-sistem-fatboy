@@ -354,13 +354,8 @@ export class OrdersService {
         );
       }
 
-      // Si hay ambigüedad (más de 1 turno abierto), el dispositivo DEBE especificar cuál usar
-      if (openShifts.length > 1) {
-        throw new BadRequestException(
-          'Existen múltiples turnos de caja abiertos. El dispositivo debe especificar un ID de turno.',
-        );
-      }
-
+      // Si hay múltiples turnos abiertos (ej. varias cajas), por defecto los meseros
+      // se ligan al turno más reciente (openShifts[0]) si el dispositivo no especifica uno.
       return openShifts[0];
     }
 

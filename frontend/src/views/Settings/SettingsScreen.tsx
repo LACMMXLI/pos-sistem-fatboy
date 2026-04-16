@@ -28,7 +28,7 @@ const tabs: Array<{ id: TabId; label: string; icon: React.ReactNode }> = [
 ];
 
 const emptyUserForm: UserForm = { name: '', email: '', password: '', roleId: '', tabletPin: '', isActive: true };
-const fieldClass = 'w-full bg-surface-container-highest border border-outline-variant/20 px-2 py-1.5 text-[10px] font-bold text-on-surface outline-none focus:border-primary';
+const fieldClass = 'w-full bg-surface-container-highest/50 backdrop-blur-sm border border-outline-variant/20 px-2 py-1.5 text-[10px] font-bold text-on-surface outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all rounded-[2px] shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)]';
 
 export function SettingsScreen() {
   const queryClient = useQueryClient();
@@ -213,8 +213,9 @@ export function SettingsScreen() {
         email: userForm.email,
         roleId: Number(userForm.roleId),
       };
-      if (selectedRole?.name === 'MESERO') {
-        payload.tabletPin = userForm.tabletPin;
+      const isStaffRole = ['ADMIN', 'SUPERVISOR', 'CAJERO', 'COCINA', 'MESERO'].includes(selectedRole?.name || '');
+      if (isStaffRole) {
+        payload.tabletPin = userForm.tabletPin || null;
       }
       if (editingUser) payload.isActive = userForm.isActive;
       else payload.password = userForm.password;
@@ -310,7 +311,7 @@ export function SettingsScreen() {
   };
 
   const selectedRole = roles.find((role) => String(role.id) === userForm.roleId) ?? null;
-  const isWaiterRoleSelected = selectedRole?.name === 'MESERO';
+  const isStaffRole = ['ADMIN', 'SUPERVISOR', 'CAJERO', 'COCINA', 'MESERO'].includes(selectedRole?.name || '');
 
   const handleThemeSelect = (themeId: ThemePresetId) => {
     const theme = getThemePalette(themeId);
@@ -347,28 +348,28 @@ export function SettingsScreen() {
   };
 
   return (
-    <div className="h-full p-1">
-      <div className="flex h-full flex-col gap-1 overflow-hidden">
-        <div className="border border-outline-variant/10 bg-surface-container-low shadow-xl">
-          <div className="flex flex-wrap items-end gap-0.5 px-1.5 py-1">
-            {tabs.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setTab(item.id)}
-                className={cn(
-                  'flex w-fit items-center justify-center gap-1.5 rounded-t-sm border border-b-0 px-2.5 py-1.5 text-[8px] font-black uppercase tracking-[0.14em] transition-all',
-                  tab === item.id ? 'border-primary/40 bg-surface text-primary' : 'border-outline-variant/15 bg-surface-container-high text-outline hover:text-white',
-                )}
-              >
-                <span className={cn(tab === item.id ? 'text-primary' : 'text-outline/50')}>{item.icon}</span>
-                {item.label}
-              </button>
-            ))}
-          </div>
-        </div>
+    <div className="h-full flex flex-col overflow-hidden p-1.5 gap-1.5 bg-surface-container-lowest bg-gradient-to-br from-surface-container-lowest to-surface-container/30">
+      <div className="flex flex-wrap gap-0.5 border border-outline-variant/10 bg-surface-container-low/80 backdrop-blur-md shadow-sm p-1 rounded-[4px] shrink-0 ring-1 ring-white/5">
+        {tabs.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => setTab(item.id)}
+            className={cn(
+              'flex flex-1 items-center justify-center gap-1.5 rounded-[2px] px-2 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] transition-all duration-300',
+              tab === item.id
+                ? 'bg-primary/10 text-primary border-b-[2.5px] border-primary shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]'
+                : 'text-outline hover:bg-surface-container/50 hover:text-on-surface border-b-[2.5px] border-transparent hover:border-outline-variant/30',
+            )}
+          >
+            <span className={cn('transition-all duration-300', tab === item.id ? 'text-primary drop-shadow-[0_0_4px_rgba(var(--primary),0.3)]' : 'text-outline/40')}>{item.icon}</span>
+            <span className="truncate">{item.label}</span>
+          </button>
+        ))}
+      </div>
 
-        <div className={cn('grid min-h-0 flex-1 gap-1 overflow-hidden', isSinglePaneTab ? 'grid-cols-1' : 'grid-cols-12')}>
-          <div className={cn('min-h-0 overflow-hidden border border-outline-variant/10 bg-surface-container-low shadow-xl', isSinglePaneTab ? 'col-span-1' : 'col-span-9')}>
+      <div className="flex-1 flex min-w-0 min-h-0 overflow-hidden border border-outline-variant/10 bg-surface-container-low/90 backdrop-blur-lg shadow-2xl rounded-[4px] relative before:absolute before:inset-0 before:ring-1 before:ring-white/5 before:pointer-events-none">
+        <div className={cn('flex flex-1 min-h-0 min-w-0 overflow-hidden relative z-10', isSinglePaneTab ? '' : 'flex flex-row divide-x divide-outline-variant/10')}>
+          <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden bg-surface-container-lowest/50">
             {tab === 'general' && (
               <div className="flex h-full flex-col">
                 <Header>
@@ -377,39 +378,39 @@ export function SettingsScreen() {
                     Guardar
                   </ActionButton>
                 </Header>
-                <div className="grid flex-1 grid-cols-[minmax(0,1.45fr)_minmax(260px,0.95fr)] gap-2 p-2">
-                  <div className="space-y-2">
+                <div className="grid flex-1 grid-cols-[minmax(0,1.8fr)_220px] gap-1.5 p-1.5 overflow-y-auto">
+                  <div className="space-y-1.5">
                     <Field label="Nombre del negocio"><input value={generalForm.restaurantName} onChange={(e) => setGeneralForm((c) => ({ ...c, restaurantName: e.target.value }))} className={fieldClass} /></Field>
-                    <Field label="Dirección"><textarea rows={5} value={generalForm.restaurantAddress} onChange={(e) => setGeneralForm((c) => ({ ...c, restaurantAddress: e.target.value }))} className={`${fieldClass} resize-none`} /></Field>
+                    <Field label="Dirección"><textarea rows={2} value={generalForm.restaurantAddress} onChange={(e) => setGeneralForm((c) => ({ ...c, restaurantAddress: e.target.value }))} className={`${fieldClass} resize-none h-10`} /></Field>
+                    <Field label="Tasa de impuesto (%)"><input type="number" min="0" step="0.01" value={generalForm.taxRate} onChange={(e) => setGeneralForm((c) => ({ ...c, taxRate: e.target.value }))} className={fieldClass} /></Field>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <div className="grid grid-cols-2 gap-1.5">
-                      <Metric label="Usuarios activos" value={String(metrics.activeUsers).padStart(2, '0')} />
+                      <Metric label="Usuarios" value={String(metrics.activeUsers).padStart(2, '0')} />
                       <Metric label="Admins" value={String(metrics.adminUsers).padStart(2, '0')} />
                     </div>
-                    <div className="border border-outline-variant/10 bg-surface-container-high p-2.5">
+                    <div className="border border-white/5 bg-surface-container-highest/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-[3px] backdrop-blur-md p-1.5">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <p className="text-[8px] font-black uppercase tracking-[0.16em] text-on-surface">IVA habilitado</p>
-                          <p className="mt-1 text-[7px] font-bold uppercase tracking-[0.12em] text-outline">Impuesto global en ventas</p>
+                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-on-surface">IVA habilitado</p>
+                          <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-outline">Impuesto global</p>
                         </div>
-                        <button onClick={() => setGeneralForm((c) => ({ ...c, taxEnabled: !c.taxEnabled }))} className={cn('relative h-7 w-14 border transition-colors', generalForm.taxEnabled ? 'border-primary bg-primary' : 'border-outline-variant/20 bg-surface-container-lowest')}>
-                          <span className={cn('absolute top-0 h-full w-7 bg-white transition-transform', generalForm.taxEnabled ? 'translate-x-7' : 'translate-x-0')} />
+                        <button onClick={() => setGeneralForm((c) => ({ ...c, taxEnabled: !c.taxEnabled }))} className={cn('relative h-4 w-8 border rounded-full transition-all duration-300 shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)] ring-1 ring-white/5', generalForm.taxEnabled ? 'border-primary bg-primary' : 'border-outline-variant/20 bg-surface-container-lowest')}>
+                          <span className={cn('absolute top-[1px] left-[1px] h-3 w-3 rounded-full bg-white transition-transform shadow-md', generalForm.taxEnabled ? 'translate-x-[14px]' : 'translate-x-0')} />
                         </button>
                       </div>
                     </div>
-                    <div className="border border-outline-variant/10 bg-surface-container-high p-2.5">
+                    <div className="border border-white/5 bg-surface-container-highest/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-[3px] backdrop-blur-md p-1.5">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <p className="text-[8px] font-black uppercase tracking-[0.16em] text-on-surface">Notificaciones de WhatsApp</p>
-                          <p className="mt-1 text-[7px] font-bold uppercase tracking-[0.12em] text-outline">Activa o desactiva el addon externo desde el sistema</p>
+                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-on-surface">Notificaciones WA</p>
+                          <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-outline">Activa el addon externo</p>
                         </div>
-                        <button onClick={() => setGeneralForm((c) => ({ ...c, whatsappAddonEnabled: !c.whatsappAddonEnabled }))} className={cn('relative h-7 w-14 border transition-colors', generalForm.whatsappAddonEnabled ? 'border-primary bg-primary' : 'border-outline-variant/20 bg-surface-container-lowest')}>
-                          <span className={cn('absolute top-0 h-full w-7 bg-white transition-transform', generalForm.whatsappAddonEnabled ? 'translate-x-7' : 'translate-x-0')} />
+                        <button onClick={() => setGeneralForm((c) => ({ ...c, whatsappAddonEnabled: !c.whatsappAddonEnabled }))} className={cn('relative h-4 w-8 border rounded-full transition-all duration-300 shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)] ring-1 ring-white/5', generalForm.whatsappAddonEnabled ? 'border-primary bg-primary' : 'border-outline-variant/20 bg-surface-container-lowest')}>
+                          <span className={cn('absolute top-[1px] left-[1px] h-3 w-3 rounded-full bg-white transition-transform shadow-md', generalForm.whatsappAddonEnabled ? 'translate-x-[14px]' : 'translate-x-0')} />
                         </button>
                       </div>
                     </div>
-                    <Field label="Tasa de impuesto (%)"><input type="number" min="0" step="0.01" value={generalForm.taxRate} onChange={(e) => setGeneralForm((c) => ({ ...c, taxRate: e.target.value }))} className={fieldClass} /></Field>
                   </div>
                 </div>
               </div>
@@ -423,26 +424,23 @@ export function SettingsScreen() {
                     Guardar
                   </ActionButton>
                 </Header>
-                <div className="grid flex-1 grid-cols-[minmax(0,1.5fr)_280px] gap-2 p-2">
-                  <div className="min-h-0 overflow-hidden">
-                    <div className="mb-1.5 border border-outline-variant/10 bg-surface-container-high p-2">
-                      <p className="text-[8px] font-black uppercase tracking-[0.16em] text-on-surface">Perfiles predefinidos</p>
-                      <p className="mt-1 text-[7px] font-bold uppercase tracking-[0.12em] text-outline">
-                        Todos están balanceados para mantener contraste entre fondo, panel y texto.
-                      </p>
+                <div className="grid flex-1 grid-cols-[minmax(0,1fr)_180px] gap-1.5 p-1.5 overflow-hidden">
+                  <div className="min-h-0 overflow-hidden flex flex-col">
+                    <div className="mb-1 border border-white/5 bg-surface-container-highest/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-[3px] backdrop-blur-md p-1">
+                      <p className="text-[9px] font-black uppercase tracking-[0.16em] text-on-surface">Perfiles predefinidos combinados</p>
                     </div>
-                    <div className="grid h-full grid-cols-2 gap-2 overflow-y-auto custom-scrollbar content-start pr-1 pb-10 uppercase md:grid-cols-3">
+                    <div className="grid flex-1 grid-cols-2 gap-1.5 overflow-y-auto custom-scrollbar content-start pr-0.5 pb-2 md:grid-cols-3">
                       {themeFamilies.map((family) => {
                         const familyThemes = themePalettes.filter((theme) => theme.family === family.id);
 
                         return (
-                          <section key={family.id} className="flex h-fit flex-col border border-outline-variant/10 bg-surface-container-high p-1.5">
+                          <section key={family.id} className="flex h-fit flex-col border border-white/5 bg-surface-container-highest/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-[3px] backdrop-blur-md p-1.5">
                             <div className="mb-1.5 flex items-end justify-between gap-2 border-b border-outline-variant/10 pb-1">
                               <div>
-                                <p className="text-[8px] font-black uppercase tracking-[0.18em] text-on-surface">{family.label}</p>
-                                <p className="mt-1 text-[7px] font-bold uppercase tracking-[0.12em] text-outline">{family.description}</p>
+                                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface">{family.label}</p>
+                                <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-outline">{family.description}</p>
                               </div>
-                              <span className="border border-outline-variant/10 bg-surface-container px-1.5 py-0.5 text-[6px] font-black uppercase tracking-[0.16em] text-outline">
+                              <span className="border border-outline-variant/10 bg-surface-container px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.16em] text-outline">
                                 {familyThemes.length} temas
                               </span>
                             </div>
@@ -457,15 +455,15 @@ export function SettingsScreen() {
                                     className={cn(
                                       'border p-1.5 text-left transition-all',
                                       isActive
-                                        ? 'border-primary/40 bg-surface-container-highest shadow-lg shadow-primary/10'
-                                        : 'border-outline-variant/10 bg-surface-container-lowest hover:border-primary/20 hover:bg-surface-container-high',
+                                        ? 'border-primary/60 bg-surface-container-highest shadow-sm'
+                                        : 'border-outline-variant/10 bg-surface-container-lowest hover:border-primary/30 hover:bg-surface-container-high',
                                     )}
                                   >
                                     <div className="mb-1 flex items-center justify-between gap-2">
-                                      <span className="text-[8px] font-black uppercase tracking-[0.16em] text-on-surface">{theme.label}</span>
+                                      <span className="text-[10px] font-black uppercase tracking-[0.16em] text-on-surface">{theme.label}</span>
                                       <span
                                         className={cn(
-                                          'border px-1.5 py-0.5 text-[6px] font-black uppercase tracking-[0.16em]',
+                                          'border px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.16em]',
                                           isActive
                                             ? 'border-primary/30 bg-primary/10 text-primary'
                                             : 'border-outline-variant/10 bg-surface-container text-outline',
@@ -480,7 +478,7 @@ export function SettingsScreen() {
                                       <span className="h-5 border border-black/10" style={{ backgroundColor: theme.accentColor }} />
                                       <span className="h-5 border border-black/10" style={{ backgroundColor: theme.inkColor }} />
                                     </div>
-                                    <p className="text-[6px] font-bold uppercase tracking-[0.1em] text-outline">{theme.description}</p>
+                                    <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-outline">{theme.description}</p>
                                   </button>
                                 );
                               })}
@@ -492,38 +490,38 @@ export function SettingsScreen() {
                   </div>
 
                   <div className="space-y-2">
-                    <div className="border border-outline-variant/10 bg-surface-container-high p-2.5">
-                      <p className="text-[8px] font-black uppercase tracking-[0.16em] text-on-surface">Tema activo</p>
-                      <p className="mt-1 text-[11px] font-headline font-black uppercase text-primary">{selectedTheme.label}</p>
-                      <p className="mt-1 text-[7px] font-bold uppercase tracking-[0.12em] text-outline">{selectedTheme.description}</p>
+                    <div className="border border-white/5 bg-surface-container-highest/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-[3px] backdrop-blur-md p-2.5">
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-on-surface">Tema activo</p>
+                      <p className="mt-1 text-[13px] font-headline font-black uppercase text-primary">{selectedTheme.label}</p>
+                      <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-outline">{selectedTheme.description}</p>
                     </div>
-                    <div className="border border-outline-variant/10 bg-surface-container-high p-2.5">
-                      <p className="text-[8px] font-black uppercase tracking-[0.16em] text-on-surface">Vista previa</p>
+                    <div className="border border-white/5 bg-surface-container-highest/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-[3px] backdrop-blur-md p-2.5">
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-on-surface">Vista previa</p>
                       <div className="mt-1.5 space-y-1.5 border border-outline-variant/10 p-2" style={{ backgroundColor: selectedTheme.paperColor }}>
                         <div className="border px-2 py-2" style={{ backgroundColor: selectedTheme.panelColor, borderColor: `${selectedTheme.accentColor}55` }}>
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-[8px] font-black uppercase tracking-[0.16em]" style={{ color: selectedTheme.inkColor }}>
+                            <span className="text-[10px] font-black uppercase tracking-[0.16em]" style={{ color: selectedTheme.inkColor }}>
                               Encabezado
                             </span>
                             <span
-                              className="px-2 py-1 text-[7px] font-black uppercase tracking-[0.16em]"
+                              className="px-2 py-1 text-[10px] font-black uppercase tracking-[0.16em]"
                               style={{ backgroundColor: selectedTheme.accentColor, color: selectedTheme.paperColor === '#ffffff' || selectedTheme.paperColor === '#fffdf8' ? '#ffffff' : '#1a0a00' }}
                             >
                               Acción
                             </span>
                           </div>
-                          <p className="mt-2 text-[7px] font-bold uppercase tracking-[0.12em]" style={{ color: `${selectedTheme.inkColor}D9` }}>
+                          <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: `${selectedTheme.inkColor}D9` }}>
                             Texto principal visible, panel definido y botones con acento fuerte.
                           </p>
                         </div>
                         <div className="flex gap-2">
                           <div className="flex-1 border px-2 py-2" style={{ backgroundColor: selectedTheme.panelColor, borderColor: `${selectedTheme.accentColor}22` }}>
-                            <span className="block text-[6px] font-black uppercase tracking-[0.14em]" style={{ color: `${selectedTheme.inkColor}B8` }}>Panel</span>
-                            <span className="mt-1 block text-[9px] font-black uppercase" style={{ color: selectedTheme.inkColor }}>Contenido</span>
+                            <span className="block text-[9px] font-black uppercase tracking-[0.14em]" style={{ color: `${selectedTheme.inkColor}B8` }}>Panel</span>
+                            <span className="mt-1 block text-[11px] font-black uppercase" style={{ color: selectedTheme.inkColor }}>Contenido</span>
                           </div>
                           <div className="flex-1 border px-2 py-2" style={{ backgroundColor: selectedTheme.accentColor, borderColor: `${selectedTheme.accentColor}88`, color: selectedTheme.paperColor === '#ffffff' || selectedTheme.paperColor === '#fffdf8' ? '#ffffff' : '#1a0a00' }}>
-                            <span className="block text-[6px] font-black uppercase tracking-[0.14em]">Primario</span>
-                            <span className="mt-1 block text-[9px] font-black uppercase">Botón</span>
+                            <span className="block text-[9px] font-black uppercase tracking-[0.14em]">Primario</span>
+                            <span className="mt-1 block text-[11px] font-black uppercase">Botón</span>
                           </div>
                         </div>
                       </div>
@@ -564,19 +562,20 @@ export function SettingsScreen() {
                       <thead className="sticky top-0 bg-surface-container-lowest">
                         <tr>
                           {['Nombre', 'Correo', 'Rol', 'Estado', 'Alta', 'Editar'].map((label) => (
-                            <th key={label} className="px-2 py-1.5 text-[6px] font-black uppercase tracking-[0.14em] text-outline">{label}</th>
+                            <th key={label} className="px-2 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-outline">{label}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-outline-variant/5">
                         {users.map((user) => (
-                          <tr key={user.id} onClick={() => setSelectedUserId(user.id)} className={cn('cursor-pointer transition-colors hover:bg-surface-container-high', selectedUserId === user.id && 'bg-surface-container-high border-l-4 border-primary')}>
-                            <td className="px-2 py-1.5 text-[9px] font-black uppercase text-on-surface">{user.name}</td>
-                            <td className="px-2 py-1.5 text-[7px] font-bold text-outline">{user.email}</td>
-                            <td className="whitespace-nowrap px-2 py-1.5"><span className="border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-[6px] font-black uppercase tracking-[0.12em] text-primary">{user.role.name}</span></td>
-                            <td className="whitespace-nowrap px-2 py-1.5 text-[7px] font-bold uppercase text-on-surface">{user.isActive ? 'Activo' : 'Inactivo'}</td>
-                            <td className="whitespace-nowrap px-2 py-1.5 text-[7px] font-bold uppercase text-outline">{new Date(user.createdAt).toLocaleDateString('es-MX')}</td>
-                            <td className="whitespace-nowrap px-2 py-1.5 text-right"><button onClick={(e) => { e.stopPropagation(); openEditUser(user); }} className="border border-outline-variant/10 bg-surface-container-highest px-2 py-0.5 text-[6px] font-black uppercase tracking-[0.12em] text-on-surface hover:text-primary">Editar</button></td>
+                          <tr key={user.id} onClick={() => setSelectedUserId(user.id)} className={cn('cursor-pointer transition-all duration-300 hover:bg-surface-container-high/50 hover:shadow-sm', selectedUserId === user.id && 'bg-surface-container-high/80 border-l-[3px] border-primary shadow-[inset_0_0_12px_rgba(0,0,0,0.05)] text-shadow')}>
+
+                            <td className="px-2 py-1.5 text-[10px] font-black uppercase text-on-surface">{user.name}</td>
+                            <td className="px-2 py-1.5 text-[10px] font-bold text-outline">{user.email}</td>
+                            <td className="whitespace-nowrap px-2 py-1.5"><span className="border border-primary/20 bg-primary/10 px-1.5 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-primary">{user.role.name}</span></td>
+                            <td className="whitespace-nowrap px-2 py-1.5 text-[9px] font-bold uppercase text-on-surface">{user.isActive ? 'Activo' : 'Inactivo'}</td>
+                            <td className="whitespace-nowrap px-2 py-1.5 text-[9px] font-bold uppercase text-outline">{new Date(user.createdAt).toLocaleDateString('es-MX')}</td>
+                            <td className="whitespace-nowrap px-2 py-1.5 text-right"><button onClick={(e) => { e.stopPropagation(); openEditUser(user); }} className="border border-white/10 bg-surface-container-highest/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-[3px] backdrop-blur-md/40 shadow-sm backdrop-blur-md rounded-[2px]est px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.12em] text-on-surface hover:text-primary">Editar</button></td>
                           </tr>
                         ))}
                       </tbody>
@@ -615,18 +614,19 @@ export function SettingsScreen() {
                       <thead className="sticky top-0 bg-surface-container-lowest">
                         <tr>
                           {['Nombre', 'Correo', 'Estado', 'Alta', 'Editar'].map((label) => (
-                            <th key={label} className="px-2 py-1.5 text-[6px] font-black uppercase tracking-[0.14em] text-outline">{label}</th>
+                            <th key={label} className="px-2 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-outline">{label}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-outline-variant/5">
                         {waiters.map((user) => (
-                          <tr key={user.id} onClick={() => setSelectedUserId(user.id)} className={cn('cursor-pointer transition-colors hover:bg-surface-container-high', selectedUserId === user.id && 'bg-surface-container-high border-l-4 border-primary')}>
-                            <td className="px-2 py-1.5 text-[9px] font-black uppercase text-on-surface">{user.name}</td>
-                            <td className="px-2 py-1.5 text-[7px] font-bold text-outline">{user.email}</td>
-                            <td className="whitespace-nowrap px-2 py-1.5 text-[7px] font-bold uppercase text-on-surface">{user.isActive ? 'Activo' : 'Inactivo'}</td>
-                            <td className="whitespace-nowrap px-2 py-1.5 text-[7px] font-bold uppercase text-outline">{new Date(user.createdAt).toLocaleDateString('es-MX')}</td>
-                            <td className="whitespace-nowrap px-2 py-1.5 text-right"><button onClick={(e) => { e.stopPropagation(); openEditUser(user); }} className="border border-outline-variant/10 bg-surface-container-highest px-2 py-0.5 text-[6px] font-black uppercase tracking-[0.12em] text-on-surface hover:text-primary">Editar</button></td>
+                          <tr key={user.id} onClick={() => setSelectedUserId(user.id)} className={cn('cursor-pointer transition-all duration-300 hover:bg-surface-container-high/50 hover:shadow-sm', selectedUserId === user.id && 'bg-surface-container-high/80 border-l-[3px] border-primary shadow-[inset_0_0_12px_rgba(0,0,0,0.05)] text-shadow')}>
+
+                            <td className="px-2 py-1.5 text-[10px] font-black uppercase text-on-surface">{user.name}</td>
+                            <td className="px-2 py-1.5 text-[10px] font-bold text-outline">{user.email}</td>
+                            <td className="whitespace-nowrap px-2 py-1.5 text-[9px] font-bold uppercase text-on-surface">{user.isActive ? 'Activo' : 'Inactivo'}</td>
+                            <td className="whitespace-nowrap px-2 py-1.5 text-[9px] font-bold uppercase text-outline">{new Date(user.createdAt).toLocaleDateString('es-MX')}</td>
+                            <td className="whitespace-nowrap px-2 py-1.5 text-right"><button onClick={(e) => { e.stopPropagation(); openEditUser(user); }} className="border border-white/10 bg-surface-container-highest/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-[3px] backdrop-blur-md/40 shadow-sm backdrop-blur-md rounded-[2px]est px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.12em] text-on-surface hover:text-primary">Editar</button></td>
                           </tr>
                         ))}
                       </tbody>
@@ -638,39 +638,39 @@ export function SettingsScreen() {
 
             {tab === 'database' && (
               <div className="flex h-full flex-col">
-                <div className="grid flex-1 grid-cols-2 gap-1.5 p-1.5">
+                <div className="grid grid-cols-2 gap-1.5 p-1.5">
                   <Metric label="Motor" value="POSTGRES" />
                   <Metric label="Estado" value="ONLINE" />
-                  <div className="col-span-2 border border-red-500/15 bg-red-500/5 p-2.5">
-                    <div className="flex items-start gap-3">
-                      <Trash2 className="mt-0.5 w-4 h-4 text-red-400" />
-                      <div className="flex-1">
-                        <p className="text-[9px] font-black uppercase tracking-[0.16em] text-red-300">Purga total de registros</p>
-                        <p className="mt-2 text-[8px] font-bold uppercase tracking-[0.12em] text-outline">Acción irreversible sobre historial comercial y operativo.</p>
-                        <div className="mt-2.5 flex gap-1.5">
-                          <input type="password" placeholder="Contraseña de administrador" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} className={fieldClass} />
-                          <ActionButton variant="danger" size="md" onClick={() => purgeDb.mutate()} disabled={purgeDb.isPending || !adminPassword}>
-                            {purgeDb.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                            Purga
-                          </ActionButton>
-                        </div>
+                  <div className="col-span-2 flex items-center justify-between border border-red-500/20 bg-red-500/5 p-2 gap-2 backdrop-blur-sm shadow-[inset_0_1px_1px_rgba(255,0,0,0.1)] rounded-[4px]">
+                    <div className="flex items-center gap-2">
+                      <Trash2 className="w-4 h-4 text-red-400 shrink-0" />
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-red-300">Purga total de registros</p>
+                        <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-outline">Acción irreversible sobre historial.</p>
                       </div>
                     </div>
+                    <div className="flex items-center gap-1.5 w-[280px]">
+                      <input type="password" placeholder="Contraseña admin" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} className={fieldClass} />
+                      <ActionButton variant="danger" size="md" onClick={() => purgeDb.mutate()} disabled={purgeDb.isPending || !adminPassword}>
+                        {purgeDb.isPending ? <Loader2 className="w-3 h-3 animate-spin shrink-0" /> : <Trash2 className="w-3 h-3 shrink-0" />}
+                        Purga
+                      </ActionButton>
+                    </div>
                   </div>
-                  <div className="col-span-2 border border-amber-500/15 bg-amber-500/5 p-2.5">
-                    <div className="flex items-start gap-3">
-                      <Trash2 className="mt-0.5 w-4 h-4 text-amber-300" />
-                      <div className="flex-1">
-                        <p className="text-[9px] font-black uppercase tracking-[0.16em] text-amber-200">Purga total de empleados</p>
-                        <p className="mt-2 text-[8px] font-bold uppercase tracking-[0.12em] text-outline">Elimina empleados, asistencias, adelantos, deudas, consumos e historial de nomina.</p>
-                        <div className="mt-2.5 flex gap-1.5">
-                          <input type="password" placeholder="Contraseña de administrador" value={employeePurgePassword} onChange={(e) => setEmployeePurgePassword(e.target.value)} className={fieldClass} />
-                          <ActionButton variant="danger" size="md" onClick={() => purgeEmployees.mutate()} disabled={purgeEmployees.isPending || !employeePurgePassword}>
-                            {purgeEmployees.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                            Limpiar empleados
-                          </ActionButton>
-                        </div>
+                  <div className="col-span-2 flex items-center justify-between border border-amber-500/20 bg-amber-500/5 p-2 gap-2 backdrop-blur-sm shadow-[inset_0_1px_1px_rgba(255,191,0,0.1)] rounded-[4px]">
+                    <div className="flex items-center gap-2">
+                      <Trash2 className="w-4 h-4 text-amber-300 shrink-0" />
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-200">Purga de empleados</p>
+                        <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-outline">Elimina dependientes e historiales.</p>
                       </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 w-[280px]">
+                      <input type="password" placeholder="Contraseña admin" value={employeePurgePassword} onChange={(e) => setEmployeePurgePassword(e.target.value)} className={fieldClass} />
+                      <ActionButton variant="danger" size="md" onClick={() => purgeEmployees.mutate()} disabled={purgeEmployees.isPending || !employeePurgePassword}>
+                        {purgeEmployees.isPending ? <Loader2 className="w-3 h-3 animate-spin shrink-0" /> : <Trash2 className="w-3 h-3 shrink-0" />}
+                        Limpiar
+                      </ActionButton>
                     </div>
                   </div>
                 </div>
@@ -696,82 +696,66 @@ export function SettingsScreen() {
                     </ActionButton>
                   </div>
                 </Header>
-                <div className="grid flex-1 grid-cols-[minmax(0,1.4fr)_260px] gap-1.5 p-1.5">
-                  <div className="space-y-1.5 border border-outline-variant/10 bg-surface-container-high p-2">
-                    <div className="flex items-start gap-3">
-                      <div className="border border-primary/20 bg-primary/10 p-1.5 text-primary">
-                        <Mail className="w-3.5 h-3.5" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="text-[8px] font-black uppercase tracking-[0.14em] text-on-surface">Correo de cortes</p>
-                            <p className="mt-0.5 text-[6px] font-bold uppercase tracking-[0.1em] text-outline">Envía PDF al cierre del turno</p>
-                          </div>
-                          <button onClick={() => setGeneralForm((curr) => ({ ...curr, shiftEmailEnabled: !curr.shiftEmailEnabled }))} className={cn('relative h-7 w-14 border transition-colors', generalForm.shiftEmailEnabled ? 'border-primary bg-primary' : 'border-outline-variant/20 bg-surface-container-low')}>
-                            <span className={cn('absolute top-0 h-full w-7 bg-white transition-transform', generalForm.shiftEmailEnabled ? 'translate-x-7' : 'translate-x-0')} />
-                          </button>
+                <div className="grid flex-1 grid-cols-[minmax(0,1.8fr)_220px] gap-1.5 p-1.5">
+                  <div className="space-y-1.5 border border-white/5 bg-surface-container-highest/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-[3px] backdrop-blur-md p-1.5">
+                    <div className="flex items-center justify-between gap-3 bg-surface-container-lowest p-1.5 border border-outline-variant/10">
+                      <div className="flex items-center gap-2">
+                        <Mail className="w-3.5 h-3.5 text-primary" />
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-on-surface">Correo de cortes</p>
+                          <p className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.1em] text-outline">Envía PDF automático en cierres</p>
                         </div>
                       </div>
+                      <button onClick={() => setGeneralForm((curr) => ({ ...curr, shiftEmailEnabled: !curr.shiftEmailEnabled }))} className={cn('relative h-4 w-8 border rounded-full transition-all duration-300 shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)] ring-1 ring-white/5', generalForm.shiftEmailEnabled ? 'border-primary bg-primary' : 'border-outline-variant/20 bg-surface-container-low')}>
+                        <span className={cn('absolute top-[1px] left-[1px] h-3 w-3 rounded-full bg-white transition-transform shadow-md', generalForm.shiftEmailEnabled ? 'translate-x-[14px]' : 'translate-x-0')} />
+                      </button>
                     </div>
-                    <div className="grid grid-cols-[minmax(0,1.2fr)_110px] gap-1.5">
-                      <Field label="SMTP host">
-                        <input value={generalForm.shiftEmailHost} onChange={(e) => setGeneralForm((curr) => ({ ...curr, shiftEmailHost: e.target.value }))} className={fieldClass} placeholder="smtp.tudominio.com" />
-                      </Field>
-                      <Field label="Puerto">
-                        <input type="number" value={generalForm.shiftEmailPort} onChange={(e) => setGeneralForm((curr) => ({ ...curr, shiftEmailPort: e.target.value }))} className={fieldClass} placeholder="587" />
-                      </Field>
-                      <Field label="Usuario SMTP">
-                        <input value={generalForm.shiftEmailUser} onChange={(e) => setGeneralForm((curr) => ({ ...curr, shiftEmailUser: e.target.value }))} className={fieldClass} placeholder="usuario@dominio.com" />
-                      </Field>
-                      <Field label="Password SMTP">
-                        <input type="password" value={generalForm.shiftEmailPassword} onChange={(e) => setGeneralForm((curr) => ({ ...curr, shiftEmailPassword: e.target.value }))} className={fieldClass} placeholder="********" />
-                      </Field>
-                      <Field label="Remitente">
-                        <input value={generalForm.shiftEmailFrom} onChange={(e) => setGeneralForm((curr) => ({ ...curr, shiftEmailFrom: e.target.value }))} className={fieldClass} placeholder="cortes@negocio.com" />
-                      </Field>
-                      <Field label="Destinatario principal">
-                        <input value={generalForm.shiftEmailTo} onChange={(e) => setGeneralForm((curr) => ({ ...curr, shiftEmailTo: e.target.value }))} className={fieldClass} placeholder="gerencia@negocio.com" />
-                      </Field>
+                    <div className="grid grid-cols-[minmax(0,1fr)_80px] gap-1.5">
+                      <Field label="SMTP host"><input value={generalForm.shiftEmailHost} onChange={(e) => setGeneralForm((curr) => ({ ...curr, shiftEmailHost: e.target.value }))} className={fieldClass} placeholder="smtp.tudominio.com" /></Field>
+                      <Field label="Puerto"><input type="number" value={generalForm.shiftEmailPort} onChange={(e) => setGeneralForm((curr) => ({ ...curr, shiftEmailPort: e.target.value }))} className={fieldClass} placeholder="587" /></Field>
                     </div>
-                    <Field label="Copias (CC)">
-                      <textarea rows={2} value={generalForm.shiftEmailCc} onChange={(e) => setGeneralForm((curr) => ({ ...curr, shiftEmailCc: e.target.value }))} className={`${fieldClass} resize-none`} placeholder="dueno@negocio.com, contador@negocio.com" />
-                    </Field>
-                    <div className="border border-outline-variant/10 bg-surface-container-high p-2">
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <Field label="Usuario SMTP"><input value={generalForm.shiftEmailUser} onChange={(e) => setGeneralForm((curr) => ({ ...curr, shiftEmailUser: e.target.value }))} className={fieldClass} placeholder="usuario@dominio.com" /></Field>
+                      <Field label="Password SMTP"><input type="password" value={generalForm.shiftEmailPassword} onChange={(e) => setGeneralForm((curr) => ({ ...curr, shiftEmailPassword: e.target.value }))} className={fieldClass} placeholder="********" /></Field>
+                      <Field label="Remitente"><input value={generalForm.shiftEmailFrom} onChange={(e) => setGeneralForm((curr) => ({ ...curr, shiftEmailFrom: e.target.value }))} className={fieldClass} placeholder="cortes@negocio.com" /></Field>
+                      <Field label="Destinatario"><input value={generalForm.shiftEmailTo} onChange={(e) => setGeneralForm((curr) => ({ ...curr, shiftEmailTo: e.target.value }))} className={fieldClass} placeholder="gerencia@negocio.com" /></Field>
+                    </div>
+                    <Field label="Copias (CC)"><textarea rows={1} value={generalForm.shiftEmailCc} onChange={(e) => setGeneralForm((curr) => ({ ...curr, shiftEmailCc: e.target.value }))} className={`${fieldClass} resize-none`} placeholder="dueno@negocio.com" /></Field>
+                    <div className="border border-white/5 bg-surface-container-highest/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-[3px] backdrop-blur-md p-2">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <p className="text-[7px] font-black uppercase tracking-[0.14em] text-on-surface">Conexión segura</p>
-                          <p className="mt-0.5 text-[6px] font-bold uppercase tracking-[0.1em] text-outline">SSL directo para 465</p>
+                          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-on-surface">Conexión segura</p>
+                          <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-outline">SSL directo para 465</p>
                         </div>
                         <button onClick={() => setGeneralForm((curr) => ({ ...curr, shiftEmailSecure: !curr.shiftEmailSecure }))} className={cn('relative h-7 w-14 border transition-colors', generalForm.shiftEmailSecure ? 'border-primary bg-primary' : 'border-outline-variant/20 bg-surface-container-low')}>
-                          <span className={cn('absolute top-0 h-full w-7 bg-white transition-transform', generalForm.shiftEmailSecure ? 'translate-x-7' : 'translate-x-0')} />
+                          <span className={cn('absolute top-0 h-full w-7 bg-white transition-transform', generalForm.shiftEmailSecure ? 'translate-x-[14px]' : 'translate-x-0')} />
                         </button>
                       </div>
                     </div>
                   </div>
                   <div className="space-y-1.5">
-                    <div className="border border-outline-variant/10 bg-surface-container-high p-2 space-y-2">
+                    <div className="border border-white/5 bg-surface-container-highest/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-[3px] backdrop-blur-md p-2 space-y-2">
                       <Metric label="Correo automático" value={generalForm.shiftEmailEnabled ? 'ACTIVO' : 'APAGADO'} />
                       <Metric label="Servidor SMTP" value={generalForm.shiftEmailHost ? 'CONFIGURADO' : 'PENDIENTE'} />
                       <Metric label="Destinatario" value={generalForm.shiftEmailTo ? 'OK' : 'PENDIENTE'} />
                       <Metric label="Seguridad" value={generalForm.shiftEmailSecure ? 'SSL' : 'STARTTLS'} />
                     </div>
-                    <div className="border border-outline-variant/10 bg-surface-container-high p-2">
+                    <div className="border border-white/5 bg-surface-container-highest/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-[3px] backdrop-blur-md p-2">
                       <div className="flex items-start gap-3">
                         <div className="border border-primary/20 bg-primary/10 p-1.5 text-primary">
                           <ShieldCheck className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                          <p className="text-[7px] font-black uppercase tracking-[0.14em] text-on-surface">Uso recomendado</p>
-                          <p className="mt-0.5 text-[6px] font-bold uppercase tracking-[0.1em] text-outline">
+                          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-on-surface">Uso recomendado</p>
+                          <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-outline">
                             Mantén aquí solo el envío automático de cortes. La impresión y KDS viven en su propia pestaña.
                           </p>
                         </div>
                       </div>
                     </div>
-                    <div className="border border-outline-variant/10 bg-surface-container-high p-2">
-                      <p className="text-[7px] font-black uppercase tracking-[0.14em] text-on-surface">Diagnóstico rápido</p>
-                      <p className="mt-0.5 text-[6px] font-bold uppercase tracking-[0.1em] text-outline">
+                    <div className="border border-white/5 bg-surface-container-highest/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-[3px] backdrop-blur-md p-2">
+                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-on-surface">Diagnóstico rápido</p>
+                      <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-outline">
                         Usa "Probar correo" para validar SMTP y envío antes de cerrar turno. Si dejas la contraseña vacía, se conserva la guardada.
                       </p>
                     </div>
@@ -796,20 +780,20 @@ export function SettingsScreen() {
                 </Header>
                 <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1.1fr)_minmax(260px,0.9fr)] gap-1.5 overflow-y-auto p-1.5 custom-scrollbar content-start">
                   <div className="space-y-1.5">
-                    <div className="border border-outline-variant/10 bg-surface-container-high p-1.5">
+                    <div className="border border-white/5 bg-surface-container-highest/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-[3px] backdrop-blur-md p-1.5">
                       <div className="flex items-center gap-2.5">
                         <div className="border border-primary/20 bg-primary/10 p-1.5 text-primary">
                           <Printer className="w-3 h-3" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[6px] font-black uppercase tracking-[0.12em] text-on-surface">Puente central de impresión</p>
-                          <p className="mt-0.5 text-[5px] font-bold uppercase tracking-[0.08em] text-outline">Electron recibe, enruta y serializa tickets RAW en Windows</p>
+                          <p className="text-[9px] font-black uppercase tracking-[0.12em] text-on-surface">Puente central de impresión</p>
+                          <p className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.08em] text-outline">Electron recibe, enruta y serializa tickets RAW en Windows</p>
                         </div>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-1.5">
-                      <div className="border border-outline-variant/10 bg-surface-container-high p-1.5 space-y-1">
-                        <p className="text-[6px] font-black uppercase tracking-[0.12em] text-on-surface">Caja / Frontend</p>
+                      <div className="border border-white/5 bg-surface-container-highest/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-[3px] backdrop-blur-md p-1.5 space-y-1">
+                        <p className="text-[9px] font-black uppercase tracking-[0.12em] text-on-surface">Caja / Frontend</p>
                         <Field label="Impresora tickets">
                           <select
                             value={generalForm.receiptPrinterName}
@@ -835,8 +819,8 @@ export function SettingsScreen() {
                           </select>
                         </Field>
                       </div>
-                      <div className="border border-outline-variant/10 bg-surface-container-high p-1.5 space-y-1">
-                        <p className="text-[6px] font-black uppercase tracking-[0.12em] text-on-surface">Producción / HM / tablets</p>
+                      <div className="border border-white/5 bg-surface-container-highest/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-[3px] backdrop-blur-md p-1.5 space-y-1">
+                        <p className="text-[9px] font-black uppercase tracking-[0.12em] text-on-surface">Producción / HM / tablets</p>
                         <Field label="Impresora comandas">
                           <select
                             value={generalForm.kitchenPrinterName}
@@ -864,27 +848,27 @@ export function SettingsScreen() {
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-1.5">
-                      <div className="border border-outline-variant/10 bg-surface-container-high p-1.5">
+                      <div className="border border-white/5 bg-surface-container-highest/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-[3px] backdrop-blur-md p-1.5">
                         <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="text-[6px] font-black uppercase tracking-[0.12em] text-on-surface">Imprimir al cobrar</p>
-                            <p className="mt-0.5 text-[5px] font-bold uppercase tracking-[0.08em] text-outline">Take away imprime automático</p>
+                            <p className="text-[9px] font-black uppercase tracking-[0.12em] text-on-surface">Imprimir al cobrar</p>
+                            <p className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.08em] text-outline">Take away imprime automático</p>
                           </div>
-                          <button onClick={() => setGeneralForm((curr) => ({ ...curr, receiptAutoPrint: !curr.receiptAutoPrint }))} className={cn('relative h-6 w-12 shrink-0 border transition-colors', generalForm.receiptAutoPrint ? 'border-primary bg-primary' : 'border-outline-variant/20 bg-surface-container-low')}>
-                            <span className={cn('absolute top-0 h-full w-6 bg-white transition-transform', generalForm.receiptAutoPrint ? 'translate-x-6' : 'translate-x-0')} />
+                          <button onClick={() => setGeneralForm((curr) => ({ ...curr, receiptAutoPrint: !curr.receiptAutoPrint }))} className={cn('relative h-4 w-8 border rounded-full transition-all duration-300 shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)] ring-1 ring-white/5', generalForm.receiptAutoPrint ? 'border-primary bg-primary' : 'border-outline-variant/20 bg-surface-container-low')}>
+                            <span className={cn('absolute top-[1px] left-[1px] h-3 w-3 rounded-full bg-white transition-transform shadow-md', generalForm.receiptAutoPrint ? 'translate-x-[14px]' : 'translate-x-0')} />
                           </button>
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-1.5">
-                        <div className="border border-outline-variant/10 bg-surface-container-high p-1.5">
-                          <p className="text-[6px] font-black uppercase tracking-[0.12em] text-outline">Detección</p>
-                          <p className="mt-0.5 text-[8px] font-black uppercase text-on-surface">
+                        <div className="border border-white/5 bg-surface-container-highest/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-[3px] backdrop-blur-md p-1.5">
+                          <p className="text-[9px] font-black uppercase tracking-[0.12em] text-outline">Detección</p>
+                          <p className="mt-0.5 text-[10px] font-black uppercase text-on-surface">
                             {loadingPrinters ? 'Buscando...' : `${installedPrinters.length} impresoras`}
                           </p>
                         </div>
-                        <div className="border border-outline-variant/10 bg-surface-container-high p-1.5">
-                          <p className="text-[6px] font-black uppercase tracking-[0.12em] text-outline">Ruteo</p>
-                          <p className="mt-0.5 text-[8px] font-black uppercase text-on-surface">
+                        <div className="border border-white/5 bg-surface-container-highest/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-[3px] backdrop-blur-md p-1.5">
+                          <p className="text-[9px] font-black uppercase tracking-[0.12em] text-outline">Ruteo</p>
+                          <p className="mt-0.5 text-[10px] font-black uppercase text-on-surface">
                             {generalForm.kitchenPrinterName ? 'SEPARADO' : 'FALLBACK'}
                           </p>
                         </div>
@@ -892,31 +876,31 @@ export function SettingsScreen() {
                     </div>
                   </div>
                   <div className="space-y-1.5">
-                    <div className="border border-outline-variant/10 bg-surface-container-high p-1.5">
+                    <div className="border border-white/5 bg-surface-container-highest/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-[3px] backdrop-blur-md p-1.5">
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-[6px] font-black uppercase tracking-[0.12em] text-on-surface">Corte automático</p>
-                          <p className="mt-0.5 text-[5px] font-bold uppercase tracking-[0.08em] text-outline">Corta tickets y cortes</p>
+                          <p className="text-[9px] font-black uppercase tracking-[0.12em] text-on-surface">Corte automático</p>
+                          <p className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.08em] text-outline">Corta tickets y cortes</p>
                         </div>
-                        <button onClick={() => setGeneralForm((curr) => ({ ...curr, receiptCutEnabled: !curr.receiptCutEnabled }))} className={cn('relative h-6 w-12 shrink-0 border transition-colors', generalForm.receiptCutEnabled ? 'border-primary bg-primary' : 'border-outline-variant/20 bg-surface-container-low')}>
-                          <span className={cn('absolute top-0 h-full w-6 bg-white transition-transform', generalForm.receiptCutEnabled ? 'translate-x-6' : 'translate-x-0')} />
+                        <button onClick={() => setGeneralForm((curr) => ({ ...curr, receiptCutEnabled: !curr.receiptCutEnabled }))} className={cn('relative h-4 w-8 border rounded-full transition-all duration-300 shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)] ring-1 ring-white/5', generalForm.receiptCutEnabled ? 'border-primary bg-primary' : 'border-outline-variant/20 bg-surface-container-low')}>
+                          <span className={cn('absolute top-[1px] left-[1px] h-3 w-3 rounded-full bg-white transition-transform shadow-md', generalForm.receiptCutEnabled ? 'translate-x-[14px]' : 'translate-x-0')} />
                         </button>
                       </div>
                     </div>
-                    <div className="border border-outline-variant/10 bg-surface-container-high p-1.5 space-y-1.5">
+                    <div className="border border-white/5 bg-surface-container-highest/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-[3px] backdrop-blur-md p-1.5 space-y-1.5">
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-[6px] font-black uppercase tracking-[0.12em] text-on-surface">Cajón de dinero</p>
-                          <p className="mt-0.5 text-[5px] font-bold uppercase tracking-[0.08em] text-outline">Pulso ESC/POS de apertura</p>
+                          <p className="text-[9px] font-black uppercase tracking-[0.12em] text-on-surface">Cajón de dinero</p>
+                          <p className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.08em] text-outline">Pulso ESC/POS de apertura</p>
                         </div>
-                        <button onClick={() => setGeneralForm((curr) => ({ ...curr, cashDrawerEnabled: !curr.cashDrawerEnabled }))} className={cn('relative h-6 w-12 shrink-0 border transition-colors', generalForm.cashDrawerEnabled ? 'border-primary bg-primary' : 'border-outline-variant/20 bg-surface-container-low')}>
-                          <span className={cn('absolute top-0 h-full w-6 bg-white transition-transform', generalForm.cashDrawerEnabled ? 'translate-x-6' : 'translate-x-0')} />
+                        <button onClick={() => setGeneralForm((curr) => ({ ...curr, cashDrawerEnabled: !curr.cashDrawerEnabled }))} className={cn('relative h-4 w-8 border rounded-full transition-all duration-300 shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)] ring-1 ring-white/5', generalForm.cashDrawerEnabled ? 'border-primary bg-primary' : 'border-outline-variant/20 bg-surface-container-low')}>
+                          <span className={cn('absolute top-[1px] left-[1px] h-3 w-3 rounded-full bg-white transition-transform shadow-md', generalForm.cashDrawerEnabled ? 'translate-x-[14px]' : 'translate-x-0')} />
                         </button>
                       </div>
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-[6px] font-black uppercase tracking-[0.12em] text-on-surface">Abrir al cobrar en efectivo</p>
-                          <p className="mt-0.5 text-[5px] font-bold uppercase tracking-[0.08em] text-outline">Solo en pagos en efectivo</p>
+                          <p className="text-[9px] font-black uppercase tracking-[0.12em] text-on-surface">Abrir al cobrar en efectivo</p>
+                          <p className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.08em] text-outline">Solo en pagos en efectivo</p>
                         </div>
                         <button
                           onClick={() => setGeneralForm((curr) => ({ ...curr, cashDrawerOpenOnCash: !curr.cashDrawerOpenOnCash }))}
@@ -927,7 +911,7 @@ export function SettingsScreen() {
                             !generalForm.cashDrawerEnabled && 'opacity-50',
                           )}
                         >
-                          <span className={cn('absolute top-0 h-full w-6 bg-white transition-transform', generalForm.cashDrawerOpenOnCash ? 'translate-x-6' : 'translate-x-0')} />
+                          <span className={cn('absolute top-[1px] left-[1px] h-3 w-3 rounded-full bg-white transition-transform shadow-md', generalForm.cashDrawerOpenOnCash ? 'translate-x-[14px]' : 'translate-x-0')} />
                         </button>
                       </div>
                       {desktopMode ? (
@@ -942,14 +926,14 @@ export function SettingsScreen() {
                         </ActionButton>
                       ) : null}
                     </div>
-                    <div className="border border-outline-variant/10 bg-surface-container-high p-1.5 space-y-1.5">
+                    <div className="border border-white/5 bg-surface-container-highest/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-[3px] backdrop-blur-md p-1.5 space-y-1.5">
                       <div className="flex items-start gap-2">
                         <div className="border border-primary/20 bg-primary/10 p-1.5 text-primary">
                           <HardDrive className="w-3 h-3" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[6px] font-black uppercase tracking-[0.12em] text-on-surface">Estado operativo</p>
-                          <p className="mt-0.5 text-[5px] font-bold uppercase tracking-[0.08em] text-outline">
+                          <p className="text-[9px] font-black uppercase tracking-[0.12em] text-on-surface">Estado operativo</p>
+                          <p className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.08em] text-outline">
                             {desktopMode
                               ? 'Electron centraliza tickets frontend y comandas de tablets/HM'
                               : 'La cola visible aparece en la computadora principal'}
@@ -979,15 +963,15 @@ export function SettingsScreen() {
           </div>
 
           {!isSinglePaneTab ? (
-            <div className="col-span-3 min-h-0 overflow-hidden border border-outline-variant/10 bg-surface-container-low shadow-xl">
-              <div className="h-full overflow-y-auto p-2 custom-scrollbar pb-8">
+            <div className="w-[180px] shrink-0 min-h-0 overflow-hidden bg-surface-container-low border-l border-outline-variant/10">
+              <div className="h-full overflow-y-auto p-1.5 custom-scrollbar">
                 {tab === 'users' ? (
                   selectedUser ? (
                     <div className="space-y-3">
                       <Info label="Nombre" value={selectedUser.name} />
                       <Info label="Correo" value={selectedUser.email} />
                       <Info label="Rol" value={selectedUser.role.name} />
-                      {selectedUser.role.name === 'MESERO' ? (
+                      {['ADMIN', 'SUPERVISOR', 'CAJERO', 'COCINA', 'MESERO'].includes(selectedUser.role.name) ? (
                         <Info label="PIN tablet" value={selectedUser.tabletPin || 'Sin PIN'} />
                       ) : null}
                       <Info label="Estado" value={selectedUser.isActive ? 'Activo' : 'Inactivo'} />
@@ -1017,9 +1001,9 @@ export function SettingsScreen() {
                     <Metric label="Fondos" value="COHERENTES" />
                     <Metric label="Contraste" value="ALTO" />
                     <Metric label="Acento" value="VISIBLE" />
-                    <div className="border border-outline-variant/10 bg-surface-container-high p-3">
-                      <p className="text-[7px] font-black uppercase tracking-[0.16em] text-outline">Criterio</p>
-                      <p className="mt-1 text-[8px] font-bold uppercase tracking-[0.12em] text-on-surface">
+                    <div className="border border-white/5 bg-surface-container-highest/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-[3px] backdrop-blur-md p-3">
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-outline">Criterio</p>
+                      <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-on-surface">
                         Ningún perfil usa texto claro sobre fondo claro. Cada tema fue armado como sistema completo.
                       </p>
                     </div>
@@ -1046,7 +1030,7 @@ export function SettingsScreen() {
             <Field label="Correo"><input type="email" value={userForm.email} onChange={(e) => setUserForm((c) => ({ ...c, email: e.target.value }))} className={fieldClass} /></Field>
             {!editingUser && <Field label="Contraseña"><input type="password" value={userForm.password} onChange={(e) => setUserForm((c) => ({ ...c, password: e.target.value }))} className={fieldClass} /></Field>}
             <Field label="Rol"><select value={userForm.roleId} onChange={(e) => setUserForm((c) => ({ ...c, roleId: e.target.value }))} className={fieldClass} disabled={tab === 'waiters'}>{roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></Field>
-            {isWaiterRoleSelected ? (
+            {isStaffRole ? (
               <Field label="PIN tablet (4 dígitos)">
                 <input
                   inputMode="numeric"
@@ -1063,8 +1047,8 @@ export function SettingsScreen() {
                 />
               </Field>
             ) : null}
-            {editingUser && <label className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-on-surface"><input type="checkbox" checked={userForm.isActive} onChange={(e) => setUserForm((c) => ({ ...c, isActive: e.target.checked }))} /> Usuario activo</label>}
-            <ActionButton variant="primary" size="md" fullWidth onClick={() => saveUser.mutate()} disabled={saveUser.isPending || !userForm.name || !userForm.email || !userForm.roleId || (!editingUser && userForm.password.length < 6) || (isWaiterRoleSelected && userForm.tabletPin.length !== 4)}>
+            {editingUser && <label className="flex items-center gap-2 text-[19px] font-bold uppercase tracking-widest text-on-surface"><input type="checkbox" checked={userForm.isActive} onChange={(e) => setUserForm((c) => ({ ...c, isActive: e.target.checked }))} /> Usuario activo</label>}
+            <ActionButton variant="primary" size="md" fullWidth onClick={() => saveUser.mutate()} disabled={saveUser.isPending || !userForm.name || !userForm.email || !userForm.roleId || (!editingUser && userForm.password.length < 6) || (selectedRole?.name === 'MESERO' && userForm.tabletPin.length !== 4)}>
               {saveUser.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
               Guardar usuario
             </ActionButton>
@@ -1080,19 +1064,17 @@ function Header({ children }: { children?: React.ReactNode }) {
     return null;
   }
 
-  return <div className="flex flex-wrap items-center justify-end gap-1 border-b border-outline-variant/10 bg-surface-container-lowest px-2 py-1.5">{children}</div>;
+  return <div className="flex flex-wrap items-center justify-end gap-1.5 border-b border-outline-variant/10 bg-surface-container-lower/60 backdrop-blur-md px-2 py-1 z-10 shadow-sm">{children}</div>;
 }
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div><label className="mb-0.5 block text-[6px] font-black uppercase tracking-[0.12em] text-outline">{label}</label>{children}</div>;
+  return <div className="group"><label className="mb-0.5 block text-[8px] font-black uppercase tracking-[0.14em] text-outline group-focus-within:text-primary transition-colors">{label}</label>{children}</div>;
 }
 function Metric({ label, value }: { label: string; value: string }) {
-  return <div className="border border-outline-variant/10 bg-surface-container-high px-1.5 py-1"><span className="block text-[5px] font-black uppercase tracking-[0.08em] text-outline">{label}</span><span className="mt-0.5 block text-[8px] font-headline font-black uppercase text-on-surface">{value}</span></div>;
+  return <div className="relative overflow-hidden border border-outline-variant/10 bg-gradient-to-br from-surface-container-high/80 to-surface-container/30 px-1.5 py-0.5 rounded-[2px] shadow-sm hover:shadow-md transition-all group duration-300"><div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" /><span className="relative z-10 block text-[7.5px] font-black uppercase tracking-[0.1em] text-outline group-hover:text-primary/70 transition-colors duration-300">{label}</span><span className="relative z-10 mt-0.5 block text-[10px] font-headline font-black uppercase text-on-surface drop-shadow-sm">{value}</span></div>;
 }
 function Info({ label, value }: { label: string; value: string }) {
-  return <div className="border-b border-outline-variant/10 pb-1.5 last:border-b-0"><p className="text-[7px] font-black uppercase tracking-[0.12em] text-outline">{label}</p><p className="mt-1 text-[9px] font-black uppercase tracking-[0.06em] text-on-surface">{value}</p></div>;
+  return <div className="border-b border-outline-variant/5 pb-1 last:border-b-0 hover:bg-surface-container-high/20 px-1 transition-colors rounded-[2px]"><p className="text-[9px] font-black uppercase tracking-[0.12em] text-outline">{label}</p><p className="mt-0.5 text-[10px] font-black uppercase tracking-[0.06em] text-on-surface">{value}</p></div>;
 }
 function Empty({ message }: { message: string }) {
-  return <div className="flex min-h-40 items-center justify-center border border-dashed border-outline-variant/20 bg-surface-container-high px-4 text-center"><p className="text-[8px] font-bold uppercase tracking-[0.12em] text-outline">{message}</p></div>;
+  return <div className="flex min-h-24 items-center justify-center border border-dashed border-outline-variant/20 bg-surface-container-high/10 backdrop-blur-sm px-2 text-center rounded-[4px]"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-outline animate-pulse-slow">{message}</p></div>;
 }
-
-        <div className="mb-6 flex h-44 w-44 items-center justify-center"></div>

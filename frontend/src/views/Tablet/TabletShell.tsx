@@ -53,7 +53,9 @@ const keypadKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clear', '0', '
 export function TabletShell() {
   const user = useAuthStore((state) => state.user);
 
-  if (!user || user.role !== 'MESERO') {
+  const canAccessTablet = user && ['ADMIN', 'SUPERVISOR', 'CAJERO', 'MESERO'].includes(user.role);
+
+  if (!canAccessTablet) {
     return <TabletWaiterLogin />;
   }
 

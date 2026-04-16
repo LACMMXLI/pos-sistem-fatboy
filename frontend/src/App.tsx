@@ -54,6 +54,7 @@ import { SalesScreen } from './views/Sales/SalesScreen';
 import { FloorPlanScreen } from './views/FloorPlan/FloorPlanScreen';
 import { LoginScreen } from './views/Login/LoginScreen';
 import { TabletShell } from './views/Tablet/TabletShell';
+import { KitchenShell } from './views/Kitchen/KitchenShell';
 
 const DashboardScreen = lazy(() =>
   import('./views/Dashboard/DashboardScreen').then((module) => ({
@@ -352,12 +353,12 @@ export default function App() {
           return <TabletShell />;
         }
 
-        if (!user) {
-          return <LoginScreen />;
+        if (isKitchenSurface) {
+          return <KitchenShell />;
         }
 
-        if (isKitchenSurface) {
-          return canSeeKitchen ? <KitchenScreen surfaceMode /> : <FloorPlanScreen />;
+        if (!user) {
+          return <LoginScreen />;
         }
 
         return (

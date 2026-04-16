@@ -269,12 +269,11 @@ export class UsersService {
   }
 
   private resolveTabletPinForCreate(roleName: string, tabletPin?: string) {
-    if (roleName !== 'MESERO') {
-      return null;
-    }
-
     if (!tabletPin) {
-      throw new BadRequestException('Los usuarios MESERO requieren un PIN operativo de 4 dígitos');
+      if (roleName === 'MESERO') {
+        throw new BadRequestException('Los usuarios MESERO requieren un PIN operativo de 4 dígitos');
+      }
+      return null;
     }
 
     return tabletPin;
@@ -286,18 +285,18 @@ export class UsersService {
     nextRoleName: string,
     nextTabletPin?: string,
   ) {
-    if (nextRoleName !== 'MESERO') {
-      return null;
-    }
-
     if (typeof nextTabletPin === 'string') {
       return nextTabletPin;
     }
 
-    if (currentRoleName === 'MESERO' && currentTabletPin) {
+    if (currentTabletPin) {
       return currentTabletPin;
     }
 
-    throw new BadRequestException('Los usuarios MESERO requieren un PIN operativo de 4 dígitos');
+    if (nextRoleName === 'MESERO') {
+      throw new BadRequestException('Los usuarios MESERO requieren un PIN operativo de 4 dígitos');
+    }
+
+    return null;
   }
 }
