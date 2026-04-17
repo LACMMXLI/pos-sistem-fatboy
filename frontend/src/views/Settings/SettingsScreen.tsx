@@ -424,109 +424,75 @@ export function SettingsScreen() {
                     Guardar
                   </ActionButton>
                 </Header>
-                <div className="grid flex-1 grid-cols-[minmax(0,1fr)_180px] gap-1.5 p-1.5 overflow-hidden">
-                  <div className="min-h-0 overflow-hidden flex flex-col">
-                    <div className="mb-1 border border-white/5 bg-surface-container-highest/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-[3px] backdrop-blur-md p-1">
-                      <p className="text-[9px] font-black uppercase tracking-[0.16em] text-on-surface">Perfiles predefinidos combinados</p>
+                <div className="grid flex-1 grid-cols-1 md:grid-cols-[minmax(0,1fr)_320px] gap-3 p-3 overflow-hidden">
+                  <div className="min-h-0 overflow-hidden flex flex-col space-y-3">
+                    <div className="border border-white/5 bg-surface-container-highest/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-[3px] backdrop-blur-md p-3">
+                      <p className="text-[11px] font-black uppercase tracking-[0.16em] text-primary">Tema del Sistema</p>
+                      <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-outline">El sistema ahora utiliza una identidad visual única y premium.</p>
                     </div>
-                    <div className="grid flex-1 grid-cols-2 gap-1.5 overflow-y-auto custom-scrollbar content-start pr-0.5 pb-2 md:grid-cols-3">
-                      {themeFamilies.map((family) => {
-                        const familyThemes = themePalettes.filter((theme) => theme.family === family.id);
 
-                        return (
-                          <section key={family.id} className="flex h-fit flex-col border border-white/5 bg-surface-container-highest/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-[3px] backdrop-blur-md p-1.5">
-                            <div className="mb-1.5 flex items-end justify-between gap-2 border-b border-outline-variant/10 pb-1">
-                              <div>
-                                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface">{family.label}</p>
-                                <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-outline">{family.description}</p>
-                              </div>
-                              <span className="border border-outline-variant/10 bg-surface-container px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.16em] text-outline">
-                                {familyThemes.length} temas
-                              </span>
-                            </div>
-                            <div className="grid flex-1 gap-1">
-                              {familyThemes.map((theme) => {
-                                const isActive = generalForm.themePreset === theme.id;
-                                return (
-                                  <button
-                                    key={theme.id}
-                                    type="button"
-                                    onClick={() => handleThemeSelect(theme.id)}
-                                    className={cn(
-                                      'border p-1.5 text-left transition-all',
-                                      isActive
-                                        ? 'border-primary/60 bg-surface-container-highest shadow-sm'
-                                        : 'border-outline-variant/10 bg-surface-container-lowest hover:border-primary/30 hover:bg-surface-container-high',
-                                    )}
-                                  >
-                                    <div className="mb-1 flex items-center justify-between gap-2">
-                                      <span className="text-[10px] font-black uppercase tracking-[0.16em] text-on-surface">{theme.label}</span>
-                                      <span
-                                        className={cn(
-                                          'border px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.16em]',
-                                          isActive
-                                            ? 'border-primary/30 bg-primary/10 text-primary'
-                                            : 'border-outline-variant/10 bg-surface-container text-outline',
-                                        )}
-                                      >
-                                        {isActive ? 'Activo' : 'Elegir'}
-                                      </span>
-                                    </div>
-                                    <div className="mb-1 grid grid-cols-[1.2fr_1.2fr_0.9fr_0.7fr] gap-1">
-                                      <span className="h-5 border border-black/10" style={{ backgroundColor: theme.paperColor }} />
-                                      <span className="h-5 border border-black/10" style={{ backgroundColor: theme.panelColor }} />
-                                      <span className="h-5 border border-black/10" style={{ backgroundColor: theme.accentColor }} />
-                                      <span className="h-5 border border-black/10" style={{ backgroundColor: theme.inkColor }} />
-                                    </div>
-                                    <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-outline">{theme.description}</p>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </section>
-                        );
-                      })}
+                    <div className="flex-1 border border-primary/20 bg-surface-container-low shadow-2xl rounded-[4px] p-6 flex flex-col items-center justify-center text-center space-y-4">
+                      <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-[#1c1b1b] to-[#393939] border-2 border-primary flex items-center justify-center shadow-[0_0_30px_rgba(255,215,0,0.2)]">
+                        <Palette className="w-10 h-10 text-primary" />
+                      </div>
+                      <div>
+                        <h2 className="text-2xl font-headline font-black uppercase tracking-tighter text-on-surface">
+                          Grafito <span className="text-primary italic">Elegante</span>
+                        </h2>
+                        <p className="mt-2 text-[12px] font-bold uppercase tracking-[0.2em] text-outline">Acento Dorado Premium</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <div className="w-8 h-8 border border-white/10" style={{ backgroundColor: '#131313' }} />
+                        <div className="w-8 h-8 border border-white/10" style={{ backgroundColor: '#1c1b1b' }} />
+                        <div className="w-8 h-8 border border-white/10" style={{ backgroundColor: '#FFD700' }} />
+                        <div className="w-8 h-8 border border-white/10" style={{ backgroundColor: '#e5e2e1' }} />
+                      </div>
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <div className="border border-white/5 bg-surface-container-highest/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-[3px] backdrop-blur-md p-2.5">
-                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-on-surface">Tema activo</p>
-                      <p className="mt-1 text-[13px] font-headline font-black uppercase text-primary">{selectedTheme.label}</p>
-                      <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-outline">{selectedTheme.description}</p>
+                  <div className="space-y-3">
+                    <div className="border border-white/5 bg-surface-container-highest/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-[3px] backdrop-blur-md p-4">
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-on-surface">Estado Visual</p>
+                      <div className="mt-2 flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                        <p className="text-[13px] font-headline font-black uppercase text-primary">Oscuro Activo</p>
+                      </div>
+                      <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.12em] text-outline leading-relaxed">
+                        Optimizado para fatiga visual mínima y máximo contraste en entornos profesionales.
+                      </p>
                     </div>
-                    <div className="border border-white/5 bg-surface-container-highest/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-[3px] backdrop-blur-md p-2.5">
-                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-on-surface">Vista previa</p>
-                      <div className="mt-1.5 space-y-1.5 border border-outline-variant/10 p-2" style={{ backgroundColor: selectedTheme.paperColor }}>
-                        <div className="border px-2 py-2" style={{ backgroundColor: selectedTheme.panelColor, borderColor: `${selectedTheme.accentColor}55` }}>
+
+                    <div className="border border-white/5 bg-surface-container-highest/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-[3px] backdrop-blur-md p-4">
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-on-surface">Vista previa de interfaz</p>
+                      <div className="mt-3 space-y-2 border border-outline-variant/10 p-3 shadow-inner" style={{ backgroundColor: selectedTheme.paperColor }}>
+                        <div className="border px-3 py-3 shadow-lg" style={{ backgroundColor: selectedTheme.panelColor, borderColor: `${selectedTheme.accentColor}44` }}>
                           <div className="flex items-center justify-between gap-2">
                             <span className="text-[10px] font-black uppercase tracking-[0.16em]" style={{ color: selectedTheme.inkColor }}>
-                              Encabezado
+                              Panel Principal
                             </span>
                             <span
-                              className="px-2 py-1 text-[10px] font-black uppercase tracking-[0.16em]"
-                              style={{ backgroundColor: selectedTheme.accentColor, color: selectedTheme.paperColor === '#ffffff' || selectedTheme.paperColor === '#fffdf8' ? '#ffffff' : '#1a0a00' }}
+                              className="px-2 py-1 text-[9px] font-black uppercase tracking-[0.16em] shadow-sm"
+                              style={{ backgroundColor: selectedTheme.accentColor, color: '#000000' }}
                             >
-                              Acción
+                              Botón
                             </span>
                           </div>
-                          <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: `${selectedTheme.inkColor}D9` }}>
-                            Texto principal visible, panel definido y botones con acento fuerte.
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          <div className="flex-1 border px-2 py-2" style={{ backgroundColor: selectedTheme.panelColor, borderColor: `${selectedTheme.accentColor}22` }}>
-                            <span className="block text-[9px] font-black uppercase tracking-[0.14em]" style={{ color: `${selectedTheme.inkColor}B8` }}>Panel</span>
-                            <span className="mt-1 block text-[11px] font-black uppercase" style={{ color: selectedTheme.inkColor }}>Contenido</span>
+                          <div className="mt-3 h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                            <div className="h-full bg-primary w-2/3" />
                           </div>
-                          <div className="flex-1 border px-2 py-2" style={{ backgroundColor: selectedTheme.accentColor, borderColor: `${selectedTheme.accentColor}88`, color: selectedTheme.paperColor === '#ffffff' || selectedTheme.paperColor === '#fffdf8' ? '#ffffff' : '#1a0a00' }}>
-                            <span className="block text-[9px] font-black uppercase tracking-[0.14em]">Primario</span>
-                            <span className="mt-1 block text-[11px] font-black uppercase">Botón</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="border p-2" style={{ backgroundColor: selectedTheme.panelColor, borderColor: `${selectedTheme.accentColor}11` }}>
+                            <div className="h-1 w-8 bg-primary/30 mb-1" />
+                            <div className="h-2 w-full bg-white/5" />
+                          </div>
+                          <div className="border p-2" style={{ backgroundColor: selectedTheme.panelColor, borderColor: `${selectedTheme.accentColor}11` }}>
+                            <div className="h-1 w-8 bg-primary/30 mb-1" />
+                            <div className="h-2 w-full bg-white/5" />
                           </div>
                         </div>
                       </div>
                     </div>
-                    <Metric label="Temas disponibles" value={String(themePalettes.length).padStart(2, '0')} />
                   </div>
                 </div>
               </div>

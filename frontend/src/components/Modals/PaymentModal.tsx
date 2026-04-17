@@ -163,13 +163,13 @@ export function PaymentModal({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-[60] flex items-center justify-center bg-stone-950/80 backdrop-blur-sm px-4"
-    >
+    >{/* COLOR: Fondo oscurecido detrás del modal (Backdrop) */}
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
         className="w-full max-w-3xl bg-surface-container-low shadow-[0_20px_40px_rgba(0,0,0,0.6)] overflow-hidden border border-outline-variant/10"
-      >
+      >{/* COLOR: Fondo del contenedor del modal (Gris muy oscuro) */}
         <div className="flex bg-surface-container-low border-b border-white/5">
           {[
             { id: 'CASH', label: 'EFECTIVO' },
@@ -182,8 +182,8 @@ export function PaymentModal({
               className={cn(
                 "flex-1 py-4 px-4 text-center font-headline font-extrabold text-[10px] tracking-widest transition-colors",
                 payMethod === method.id 
-                  ? "bg-surface-container-low text-primary border-b-2 border-primary"
-                  : "text-outline hover:bg-surface-container-high"
+                  ? "bg-surface-container-low text-primary border-b-2 border-primary" // COLOR: Método de pago seleccionado (Texto y borde color Primario)
+                  : "text-outline hover:bg-surface-container-high" // COLOR: Método de pago no seleccionado (Gris/Contorno)
               )}
             >
               {method.label}
@@ -262,7 +262,7 @@ export function PaymentModal({
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => (
                       <KeypadBtn key={n} label={n.toString()} onClick={() => handleKeypad(n.toString())} />
                     ))}
-                    <button onClick={handleClear} className="h-10 bg-error-container/20 text-error flex items-center justify-center text-[8px] font-headline font-bold hover:bg-error-container/30 active:scale-95 transition-all uppercase tracking-widest">Borrar</button>
+                    <button onClick={handleClear} className="h-10 bg-error-container/20 text-error flex items-center justify-center text-[8px] font-headline font-bold hover:bg-error-container/30 active:scale-95 transition-all uppercase tracking-widest">Borrar</button>{/* COLOR: Botón Borrar (Rojo/Error) */}
                     <KeypadBtn label="0" onClick={() => handleKeypad('0')} />
                     <button onClick={() => handleKeypad('00')} className="h-10 bg-primary-container/20 text-primary flex items-center justify-center text-[10px] font-headline font-bold hover:bg-primary-container/40 active:scale-95 transition-all uppercase tracking-widest">00</button>
                   </div>
@@ -318,7 +318,7 @@ export function PaymentModal({
                 onClick={handlePay}
                 disabled={paymentMutation.isPending || (isCashPayment && (receivedValueMxn < total || (isUsdCashPayment && exchangeRateValue <= 0)))}
                 className="h-12 bg-primary text-on-primary flex items-center justify-center gap-1.5 shadow-[0_4px_12px_rgba(76,214,255,0.2)] hover:bg-primary-fixed-dim transition-all active:scale-95 mt-1 disabled:opacity-50"
-              >
+              >{/* COLOR: Botón principal de Pagar (Color Primario) */}
                 {paymentMutation.isPending ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (

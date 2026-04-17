@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from './lib/utils';
 import { 
@@ -24,7 +24,10 @@ import {
   ReceiptText,
   PackageSearch,
   WalletCards,
-  Printer
+  Printer,
+  ChevronUp,
+  ChevronDown,
+  Wallet // Using Wallet as the closest Lucide 'money' container
 } from 'lucide-react';
 import { ErrorBoundary } from 'react-error-boundary';
 
@@ -119,9 +122,9 @@ const PrintingCenterScreen = lazy(() =>
 
 function ScreenLoader() {
   return (
-    <div className="h-full flex items-center justify-center bg-surface">
-      <div className="text-[10px] font-bold uppercase tracking-widest text-outline">
-        Cargando modulo...
+    <div className="h-full flex items-center justify-center bg-[#070707]">
+      <div className="text-[9px] font-black uppercase tracking-[0.3em] text-primary/40 animate-pulse">
+        Initializing...
       </div>
     </div>
   );
@@ -132,10 +135,11 @@ export default function App() {
   const { getTotal } = useCartStore();
   const { restaurantName, setSettings, accentColor, panelColor, paperColor, inkColor, themePreset } = useSettingsStore();
   const { checkActiveShift } = useShiftStore();
-  const canManagePayroll = ['ADMIN', 'SUPERVISOR', 'CAJERO'].includes(user?.role ?? '');
   const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isNavVisible, setIsNavVisible] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   const role = user?.role ?? '';
   const isAdmin = role === 'ADMIN';
@@ -163,8 +167,7 @@ export default function App() {
 
   useEffect(() => {
     if (!user) return;
-
-    const allowedScreens: Screen[] = [
+    const allowed: Screen[] = [
       ...(canSeeDashboard ? ['dashboard' as const] : []),
       ...(canSeeSales ? ['sales' as const] : []),
       ...(canSeeOrders ? ['orders' as const] : []),
@@ -180,294 +183,162 @@ export default function App() {
       ...(canSeePrinting ? ['printing' as const] : []),
       ...(canSeeSettings ? ['settings' as const] : []),
     ];
-
-    if (!allowedScreens.includes(currentScreen)) {
-      setCurrentScreen(allowedScreens[0] ?? 'floor');
-    }
-  }, [
-    user,
-    currentScreen,
-    canSeeDashboard,
-    canSeeSales,
-    canSeeOrders,
-    canSeeKitchen,
-    canSeeFloor,
-    canSeeCustomers,
-    canSeeDeliveries,
-    canSeeChecker,
-    canSeeCashier,
-    canSeeShiftHistory,
-    canSeeProducts,
-    canSeeEmployees,
-    canSeePrinting,
-    canSeeSettings,
-  ]);
+    if (!allowed.includes(currentScreen)) setCurrentScreen(allowed[0] ?? 'floor');
+  }, [user, currentScreen, canSeeDashboard, canSeeSales, canSeeOrders, canSeeKitchen, canSeeFloor, canSeeCustomers, canSeeDeliveries, canSeeChecker, canSeeCashier, canSeeShiftHistory, canSeeProducts, canSeeEmployees, canSeePrinting, canSeeSettings]);
 
   useRealtimeInvalidation(!!user);
 
   useEffect(() => {
-    if (!isDesktopRuntime()) {
-      return;
-    }
-
+    if (!isDesktopRuntime()) return;
     void setDesktopSessionToken(token ?? null);
   }, [token]);
 
   useEffect(() => {
-    if (!isDesktopRuntime()) {
-      return;
-    }
-
-    const minZoom = 0.8;
-    const maxZoom = 1.5;
-    const step = 0.1;
-
-    const clampZoom = (factor: number) =>
-      Math.min(maxZoom, Math.max(minZoom, Number(factor.toFixed(2))));
-
-    const applyZoom = (factor: number) => {
-      const safeFactor = clampZoom(factor);
-      setDesktopZoomFactor(safeFactor);
-      localStorage.setItem('fatboy-desktop-zoom', safeFactor.toString());
+    if (!isDesktopRuntime()) return;
+    const applyZoom = (f: number) => {
+      const sf = Math.min(1.5, Math.max(0.8, Number(f.toFixed(2))));
+      setDesktopZoomFactor(sf);
+      localStorage.setItem('fatboy-desktop-zoom', sf.toString());
     };
-
-    const savedZoom = Number(localStorage.getItem('fatboy-desktop-zoom') ?? '');
-    if (Number.isFinite(savedZoom) && savedZoom > 0) {
-      applyZoom(savedZoom);
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (!event.ctrlKey) {
-        return;
-      }
-
-      if (event.key === '+' || event.key === '=' || event.key === 'Add') {
-        event.preventDefault();
-        applyZoom(getDesktopZoomFactor() + step);
-        return;
-      }
-
-      if (event.key === '-' || event.key === '_' || event.key === 'Subtract') {
-        event.preventDefault();
-        applyZoom(getDesktopZoomFactor() - step);
-        return;
-      }
-
-      if (event.key === '0' || event.code === 'Digit0' || event.code === 'Numpad0') {
-        event.preventDefault();
-        applyZoom(1);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    const saved = Number(localStorage.getItem('fatboy-desktop-zoom') ?? '');
+    if (Number.isFinite(saved) && saved > 0) applyZoom(saved);
   }, []);
 
-  // Initialize Settings
   useEffect(() => {
     if (user) {
       checkActiveShift().catch(() => undefined);
       getSettings().then(data => {
-        setSettings({
-          ...data,
-          themePreset: resolveThemePresetFromSettings(data),
-        });
-      }).catch(err => {
-        console.error("Failed to load settings:", err);
-      });
+        setSettings({ ...data, themePreset: resolveThemePresetFromSettings(data) });
+      }).catch(err => console.error(err));
     }
   }, [user, setSettings, checkActiveShift]);
 
   useEffect(() => {
-    const resolvedThemePreset =
-      themePreset ||
-      resolveThemePresetFromSettings({
-        accentColor,
-        panelColor,
-        paperColor,
-        inkColor,
-      });
-
-    applyThemePreset(resolvedThemePreset);
+    const r = themePreset || resolveThemePresetFromSettings({ accentColor, panelColor, paperColor, inkColor });
+    applyThemePreset(r);
   }, [accentColor, inkColor, paperColor, panelColor, themePreset]);
 
-  const handleLogout = () => {
-    setIsNavVisible(false);
-    logout();
-    setCurrentScreen('dashboard');
-  };
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [userMenuRef]);
 
-  const handleBottomNavSelect = (screen: Screen) => {
-    setCurrentScreen(screen);
-    setIsNavVisible(false);
-  };
-
-  const businessName = restaurantName?.trim() || 'Mi negocio';
+  const handleLogout = () => { setIsUserMenuOpen(false); setIsNavVisible(false); logout(); setCurrentScreen('dashboard'); };
+  const handleBottomNavSelect = (s: Screen) => { setCurrentScreen(s); setIsNavVisible(false); };
+  const businessName = restaurantName?.trim() || 'FATBOY POS';
 
   const renderScreen = () => {
     switch (currentScreen) {
-      case 'dashboard': return canSeeDashboard ? <DashboardScreen /> : <FloorPlanScreen />;
-      case 'sales': return (
-        <SalesScreen
-          onPay={() => setIsPaymentModalOpen(true)}
-          onRequireShift={() => setCurrentScreen('cashier')}
-        />
-      );
+      case 'dashboard': return <DashboardScreen />;
+      case 'sales': return <SalesScreen onPay={() => setIsPaymentModalOpen(true)} onRequireShift={() => setCurrentScreen('cashier')} isParentModalOpen={isPaymentModalOpen} />;
       case 'floor': return <FloorPlanScreen />;
-      case 'kitchen': return canSeeKitchen ? <KitchenScreen /> : <FloorPlanScreen />;
-      case 'customers': return canSeeCustomers ? <CustomersScreen /> : <FloorPlanScreen />;
-      case 'orders': return canSeeOrders ? <OrdersScreen /> : <FloorPlanScreen />;
-      case 'cashier': return canSeeCashier ? <CashierScreen /> : <FloorPlanScreen />;
-      case 'shift-history': return canSeeShiftHistory ? <ShiftHistoryScreen /> : <FloorPlanScreen />;
-      case 'time-clock': return canSeeChecker ? <DigitalTimeClockScreen /> : <FloorPlanScreen />;
-      case 'settings': return canSeeSettings ? <SettingsScreen /> : <FloorPlanScreen />;
-      case 'printing': return canSeePrinting ? <PrintingCenterScreen /> : <FloorPlanScreen />;
-      case 'products': return canSeeProducts ? <ProductsScreen /> : <FloorPlanScreen />;
-      case 'deliveries': return canSeeDeliveries ? <DeliveriesScreen /> : <FloorPlanScreen />;
-      case 'employees': return canSeeEmployees ? <EmployeesHubScreen /> : <FloorPlanScreen />;
-      default: return canSeeDashboard ? <DashboardScreen /> : <FloorPlanScreen />;
+      case 'kitchen': return <KitchenScreen />;
+      case 'customers': return <CustomersScreen />;
+      case 'orders': return <OrdersScreen />;
+      case 'cashier': return <CashierScreen />;
+      case 'shift-history': return <ShiftHistoryScreen />;
+      case 'time-clock': return <DigitalTimeClockScreen />;
+      case 'settings': return <SettingsScreen />;
+      case 'printing': return <PrintingCenterScreen />;
+      case 'products': return <ProductsScreen />;
+      case 'deliveries': return <DeliveriesScreen />;
+      case 'employees': return <EmployeesHubScreen />;
+      default: return <DashboardScreen />;
     }
   };
 
   return (
     <>
-      <Toaster
-        position="bottom-left"
-        theme="dark"
-        richColors
-        closeButton={false}
-        visibleToasts={2}
-        expand={false}
-        duration={1800}
-        toastOptions={{
-          className:
-            'min-h-0 w-[260px] border border-outline-variant/10 bg-surface-container-low px-2.5 py-2 text-[11px] shadow-lg',
-          descriptionClassName: 'text-[10px] opacity-80',
-        }}
-      />
-      
+      <Toaster position="bottom-left" theme="dark" richColors toastOptions={{ className: 'border border-white/5 bg-[#0a0a0a] text-[11px]' }} />
       <ChangeOverlay />
 
       {(() => {
-        if (isTabletSurface) {
-          return <TabletShell />;
-        }
-
-        if (isKitchenSurface) {
-          return <KitchenShell />;
-        }
-
-        if (!user) {
-          return <LoginScreen />;
-        }
+        if (isTabletSurface) return <TabletShell />;
+        if (isKitchenSurface) return <KitchenShell />;
+        if (!user) return <LoginScreen />;
 
         return (
-          <div className="h-screen flex flex-col bg-surface overflow-hidden font-body text-on-surface">
-            {/* Top Nav Bar */}
-            <header className="z-50 flex h-11 items-center border-b border-white/5 bg-surface-container-lowest">
-              <button 
+          <div className="h-screen flex flex-col bg-[#070707] overflow-hidden font-body text-on-surface">
+            {/* Top Command Center */}
+            <header className="z-50 flex h-9 items-center border-b border-white/10 bg-[#000000]">
+              <div 
                 onClick={() => setCurrentScreen('dashboard')}
-                className="group flex h-full items-center border-r border-white/5 bg-surface-container-lowest px-3 hover:bg-surface-container-high transition-colors active:scale-95"
+                className="group flex h-full items-center cursor-pointer border-r border-white/5 bg-[#111111] px-4 hover:bg-primary/5 transition-all"
               >
-                <h1 className="whitespace-nowrap font-headline text-[17px] font-black uppercase tracking-tight text-white transition-colors group-hover:text-primary">
-                  {businessName}
-                </h1>
-              </button>
-              
-              <div className="flex flex-1 overflow-hidden">
-                <nav className="flex h-full overflow-x-auto no-scrollbar">
-                  {canSeeSales && (
-                    <NavButton 
-                      active={currentScreen === 'sales'} 
-                      onClick={() => setCurrentScreen('sales')}
-                      icon={<Calculator className="w-4 h-4" />}
-                      label="Ventas"
-                    />
-                  )}
-                  {canSeeOrders && (
-                    <NavButton 
-                      active={currentScreen === 'orders'} 
-                      onClick={() => setCurrentScreen('orders')}
-                      icon={<ReceiptText className="w-4 h-4" />}
-                      label="Pedidos"
-                    />
-                  )}
-                  {canSeeKitchen && (
-                    <NavButton 
-                      active={currentScreen === 'kitchen'} 
-                      onClick={() => setCurrentScreen('kitchen')}
-                      icon={<UtensilsCrossed className="w-4 h-4" />}
-                      label="Cocina"
-                    />
-                  )}
-                  {canSeeFloor && (
-                    <NavButton 
-                      active={currentScreen === 'floor'} 
-                      onClick={() => setCurrentScreen('floor')}
-                      icon={<LayoutGrid className="w-4 h-4" />}
-                      label="Mesas"
-                    />
-                  )}
-                  {canSeeCustomers && (
-                    <NavButton 
-                      active={currentScreen === 'customers'} 
-                      onClick={() => setCurrentScreen('customers')}
-                      icon={<Users className="w-4 h-4" />}
-                      label="Clientes"
-                    />
-                  )}
-                  {canSeeDeliveries && (
-                    <NavButton 
-                      active={currentScreen === 'deliveries'} 
-                      onClick={() => setCurrentScreen('deliveries')}
-                      icon={<Truck className="w-4 h-4" />}
-                      label="Entregas"
-                    />
-                  )}
-                </nav>
-
-                {canSeeChecker && (
-                  <div className="ml-2 flex h-full items-center border-l border-outline-variant/10 pl-2">
-                    <NavButton 
-                      active={currentScreen === 'time-clock'} 
-                      onClick={() => setCurrentScreen('time-clock')}
-                      icon={<Clock3 className="w-4 h-4" />}
-                      label="Checador"
-                    />
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                    <Wallet className="w-4 h-4" /> {/* 'Saco de dinero' representation */}
                   </div>
-                )}
+                  <h1 className="whitespace-nowrap font-headline text-[13px] font-black uppercase tracking-tight text-white">
+                    {businessName}
+                  </h1>
+                </div>
+              </div>
+              
+              <div className="flex flex-1 overflow-hidden h-full">
+                <nav className="flex h-full overflow-x-auto no-scrollbar items-stretch">
+                  {canSeeSales && <NavButton active={currentScreen === 'sales'} onClick={() => setCurrentScreen('sales')} icon={<Calculator className="w-3.5 h-3.5" />} label="Ventas" />}
+                  {canSeeOrders && <NavButton active={currentScreen === 'orders'} onClick={() => setCurrentScreen('orders')} icon={<ReceiptText className="w-3.5 h-3.5" />} label="Pedidos" />}
+                  {canSeeKitchen && <NavButton active={currentScreen === 'kitchen'} onClick={() => setCurrentScreen('kitchen')} icon={<UtensilsCrossed className="w-3.5 h-3.5" />} label="Cocina" />}
+                  {canSeeFloor && <NavButton active={currentScreen === 'floor'} onClick={() => setCurrentScreen('floor')} icon={<LayoutGrid className="w-3.5 h-3.5" />} label="Mesas" />}
+                  {canSeeCustomers && <NavButton active={currentScreen === 'customers'} onClick={() => setCurrentScreen('customers')} icon={<Users className="w-3.5 h-3.5" />} label="Clientes" />}
+                  {canSeeChecker && <NavButton active={currentScreen === 'time-clock'} onClick={() => setCurrentScreen('time-clock')} icon={<Clock3 className="w-3.5 h-3.5" />} label="Asistencia" />}
+                </nav>
               </div>
 
-              <div className="flex h-full items-center gap-2 border-l border-white/5 px-3">
-                <span className="border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-primary">
-                  {user.role}
-                </span>
-                <button className="text-outline hover:text-primary transition-colors">
-                  <Bell className="w-3.5 h-3.5" />
+              <div className="flex h-full items-center gap-0.5 border-l border-white/5 pr-1.5 px-3 bg-[#0a0a0a] relative" ref={userMenuRef}>
+                <button 
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  className="flex items-center gap-2 h-full hover:bg-white/5 px-2 transition-colors relative"
+                >
+                  <div className="flex flex-col items-end">
+                    <span className="text-[8px] font-black uppercase text-white/90 leading-none">{user.name}</span>
+                    <span className="text-[7px] font-bold uppercase text-primary tracking-widest leading-none mt-1">{user.role}</span>
+                  </div>
+                  <div className="w-6 h-6 rounded-full border border-primary/30 flex items-center justify-center overflow-hidden">
+                    <User className="w-3 h-3 text-primary" />
+                  </div>
                 </button>
-                <div className="relative flex h-9 w-9 cursor-pointer items-center justify-center overflow-hidden group">
-                  <img 
-                    src="/icono.png"
-                    alt="Fatboy POS"
-                    className="h-full w-full object-contain"
-                  />
-                </div>
+
+                <AnimatePresence>
+                  {isUserMenuOpen && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      className="absolute top-full right-2 mt-1 w-40 bg-[#0a0a0a] border border-white/10 shadow-2xl rounded-[2px] overflow-hidden z-[100]"
+                    >
+                      <button 
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-3 px-3 py-2 text-[10px] font-black uppercase text-red-500 hover:bg-red-500/10 transition-colors"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        Cerrar Sesión
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </header>
 
-            {/* Main Content */}
-            <main className="flex-1 relative overflow-hidden">
+            {/* Main Center Area */}
+            <main className="flex-1 relative overflow-hidden bg-[#070707]">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={currentScreen}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.2 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
                   className="h-full w-full flex flex-col"
                 >
-                  <div className="flex-1 min-h-0 bg-surface relative overflow-hidden flex flex-col">
-                    <ErrorBoundary fallback={<div className="h-full flex items-center justify-center text-error font-headline uppercase text-[10px]">Error al cargar módulo. Reintente.</div>}>
+                  <div className="flex-1 min-h-0 bg-[#070707] relative overflow-hidden flex flex-col">
+                    <ErrorBoundary fallback={<div className="h-full flex items-center justify-center text-error font-headline uppercase text-[9px] font-black tracking-widest">ERROR</div>}>
                       <Suspense fallback={<ScreenLoader />}>
                         {renderScreen()}
                       </Suspense>
@@ -477,117 +348,56 @@ export default function App() {
               </AnimatePresence>
             </main>
 
-            {/* Bottom Nav Bar (Collapsible) */}
-            <div className="fixed bottom-0 left-0 right-0 z-[100] flex flex-col items-start pointer-events-none pb-0 pl-4">
+            {/* Bottom Integrated Strip */}
+            <div className="fixed bottom-0 left-0 right-0 z-[100] flex flex-col items-center pointer-events-none pb-2">
               <motion.button 
                 onClick={() => setIsNavVisible(!isNavVisible)}
-                animate={{
-                  y: isNavVisible ? 1 : 0,
-                  scale: isNavVisible ? 0.95 : 1
-                }}
                 className={cn(
-                  "h-7 px-4 flex items-center justify-center rounded-t-md border-t border-l border-r pointer-events-auto transition-all shadow-[0_-6px_20px_rgba(0,0,0,0.4)]",
-                  isNavVisible
-                    ? "bg-surface-container-lowest border-primary/30 text-primary"
-                    : "bg-surface-container-high border-outline-variant/20 text-outline hover:border-primary/25 hover:bg-surface-container-highest hover:text-white hover:scale-105"
+                  "h-6 px-6 flex items-center justify-center rounded-t-[2px] border-t border-l border-r pointer-events-auto transition-all shadow-lg",
+                  isNavVisible 
+                    ? "bg-primary text-black border-primary" 
+                    : "bg-black/20 backdrop-blur-md border-white/10 text-outline/60 hover:text-white hover:bg-black/40"
                 )}
               >
                 <div className="flex items-center gap-2">
-                  <SettingsIcon className={cn("w-3.5 h-3.5", isNavVisible ? "animate-spin-slow" : "")} />
-                  <span className="text-[8px] font-black uppercase tracking-[0.2em] drop-shadow-sm">
-                    {isNavVisible ? 'Panel' : 'Administrador'}
-                  </span>
+                  {isNavVisible ? <ChevronDown className="w-3 h-3 text-primary" /> : <ChevronUp className="w-3 h-3 group-hover:animate-bounce" />}
+                  <span className="text-[8px] font-black uppercase tracking-[0.4em]">Panel Maestro</span>
                 </div>
               </motion.button>
+              
               <AnimatePresence>
                 {isNavVisible && (
                   <motion.footer 
                     initial={{ y: "100%" }}
                     animate={{ y: 0 }}
                     exit={{ y: "100%" }}
-                    transition={{ type: "spring", stiffness: 400, damping: 40 }}
-                    className="h-14 bg-surface-container-lowest w-full flex justify-around items-stretch shadow-[0_-16px_48px_rgba(0,0,0,0.6)] pointer-events-auto border-t border-white/10 relative z-[101]"
+                    transition={{ type: "tween", duration: 0.2 }}
+                    className="h-12 bg-[#000000] w-[95%] max-w-5xl flex justify-around items-stretch shadow-2xl pointer-events-auto border border-white/10 rounded-[4px] relative z-[101]"
                   >
-                    {canSeeDashboard && (
-                      <BottomNavButton 
-                        active={currentScreen === 'dashboard'} 
-                        onClick={() => handleBottomNavSelect('dashboard')}
-                        icon={<LayoutGrid className="w-4 h-4" />}
-                        label="Dashboard"
-                      />
-                    )}
-                    {canSeeCashier && (
-                      <BottomNavButton 
-                        active={currentScreen === 'cashier'} 
-                        onClick={() => handleBottomNavSelect('cashier')}
-                        icon={<ShoppingCart className="w-4 h-4" />}
-                        label="Caja"
-                      />
-                    )}
-                    {canSeeShiftHistory && (
-                      <BottomNavButton 
-                        active={currentScreen === 'shift-history'} 
-                        onClick={() => handleBottomNavSelect('shift-history')}
-                        icon={<WalletCards className="w-4 h-4" />}
-                        label="Cortes"
-                      />
-                    )}
-                    {canSeeProducts && (
-                      <BottomNavButton 
-                        active={currentScreen === 'products'} 
-                        onClick={() => handleBottomNavSelect('products')}
-                        icon={<Package className="w-4 h-4" />}
-                        label="Productos"
-                      />
-                    )}
-                    {canSeeEmployees && (
-                      <BottomNavButton 
-                        active={currentScreen === 'employees'} 
-                        onClick={() => handleBottomNavSelect('employees')}
-                        icon={<BadgeCheck className="w-4 h-4" />}
-                        label="Empleados"
-                      />
-                    )}
-                    {canSeePrinting && (
-                      <BottomNavButton 
-                        active={currentScreen === 'printing'} 
-                        onClick={() => handleBottomNavSelect('printing')}
-                        icon={<Printer className="w-4 h-4" />}
-                        label="Impresión"
-                      />
-                    )}
-                    {canSeeSettings && (
-                      <BottomNavButton 
-                        active={currentScreen === 'settings'} 
-                        onClick={() => handleBottomNavSelect('settings')}
-                        icon={<SettingsIcon className="w-4 h-4" />}
-                        label="Config"
-                      />
-                    )}
-                    <BottomNavButton 
-                      active={false} 
-                      onClick={handleLogout}
-                      icon={<LogOut className="w-4 h-4" />}
-                      label="Sesión"
-                    />
+                    {canSeeDashboard && <BottomNavButton active={currentScreen === 'dashboard'} onClick={() => handleBottomNavSelect('dashboard')} icon={<LayoutGrid className="w-4 h-4" />} label="Inicio" />}
+                    {canSeeCashier && <BottomNavButton active={currentScreen === 'cashier'} onClick={() => handleBottomNavSelect('cashier')} icon={<ShoppingCart className="w-4 h-4" />} label="Caja" />}
+                    {canSeeShiftHistory && <BottomNavButton active={currentScreen === 'shift-history'} onClick={() => handleBottomNavSelect('shift-history')} icon={<History className="w-4 h-4" />} label="Cortes" />}
+                    {canSeeProducts && <BottomNavButton active={currentScreen === 'products'} onClick={() => handleBottomNavSelect('products')} icon={<Package className="w-4 h-4" />} label="Productos" />}
+                    {canSeeEmployees && <BottomNavButton active={currentScreen === 'employees'} onClick={() => handleBottomNavSelect('employees')} icon={<BadgeCheck className="w-4 h-4" />} label="Staff" />}
+                    {canSeeChecker && <BottomNavButton active={currentScreen === 'time-clock'} onClick={() => handleBottomNavSelect('time-clock')} icon={<Clock3 className="w-4 h-4" />} label="Reloj" />}
+                    {canSeePrinting && <BottomNavButton active={currentScreen === 'printing'} onClick={() => handleBottomNavSelect('printing')} icon={<Printer className="w-4 h-4" />} label="Impresión" />}
+                    {canSeeSettings && <BottomNavButton active={currentScreen === 'settings'} onClick={() => handleBottomNavSelect('settings')} icon={<SettingsIcon className="w-4 h-4" />} label="Ajustes" />}
                   </motion.footer>
                 )}
               </AnimatePresence>
             </div>
-
-            {/* Payment Modal */}
-            <AnimatePresence>
-              {isPaymentModalOpen && (
-                <PaymentModal 
-                  total={getTotal()} 
-                  onClose={() => setIsPaymentModalOpen(false)}
-                  onRequireShift={() => setCurrentScreen('cashier')}
-                />
-              )}
-            </AnimatePresence>
           </div>
         );
       })()}
+      <AnimatePresence>
+        {isPaymentModalOpen && (
+          <PaymentModal 
+            total={getTotal()} 
+            onClose={() => setIsPaymentModalOpen(false)}
+            onRequireShift={() => setCurrentScreen('cashier')}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 }

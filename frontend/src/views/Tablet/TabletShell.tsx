@@ -36,6 +36,8 @@ import {
   waiterPinLogin,
 } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
+import { useMenu } from '../../hooks/useMenu';
+import { useOrderDraft } from '../../hooks/useOrderDraft';
 
 type PendingDraftItem = {
   draftId: string;
@@ -192,8 +194,22 @@ function TabletServiceScreen() {
   const [tabletView, setTabletView] = useState<TabletView>('tables');
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
-  const [activeCategoryId, setActiveCategoryId] = useState<string>('all');
-  const [pendingSelection, setPendingSelection] = useState<PendingDraftItem[]>([]);
+  const { 
+    categories, 
+    products, 
+    activeCategoryId, 
+    isLoadingProducts, 
+    handleCategorySelect 
+  } = useMenu();
+  const {
+    items: pendingSelection,
+    total: pendingSubtotal,
+    addItem: addProductToSelection,
+    updateQuantity: updatePendingQuantity,
+    updateNotes: updateItemNote,
+    removeItem,
+    clearDraft: clearPendingSelection,
+  } = useOrderDraft();
   const [isCreateTableOpen, setIsCreateTableOpen] = useState(false);
   const [customTableName, setCustomTableName] = useState('');
   const [customTableAreaId, setCustomTableAreaId] = useState<string>('');
@@ -241,18 +257,6 @@ function TabletServiceScreen() {
     queryKey: ['tablet-table', selectedTableId],
     queryFn: () => getTableById(selectedTableId as string),
     enabled: !!selectedTableId,
-  });
-
-  const { data: categories = [] } = useQuery({
-    queryKey: ['tablet-categories'],
-    queryFn: getCategories,
-    enabled: tabletView === 'service',
-  });
-
-  const { data: products = [] } = useQuery({
-    queryKey: ['tablet-products', activeCategoryId],
-    queryFn: () => getProducts(activeCategoryId === 'all' ? undefined : activeCategoryId),
-    enabled: tabletView === 'service',
   });
 
   const { data: shiftAvailability } = useQuery({
@@ -323,7 +327,7 @@ function TabletServiceScreen() {
     onSuccess: (createdTable: any) => {
       setSelectedAreaId(String(createdTable.areaId));
       setSelectedTableId(String(createdTable.id));
-      setPendingSelection([]);
+      clearPendingSelection();
       setTabletView('service');
       setIsCreateTableOpen(false);
       setCustomTableName('');
@@ -358,7 +362,7 @@ function TabletServiceScreen() {
       return submitOrder(currentOrder.id);
     },
     onSuccess: () => {
-      setPendingSelection([]);
+      clearPendingSelection();
       toast.success('Comanda enviada a producción');
       invalidateTabletData();
     },
@@ -382,7 +386,7 @@ function TabletServiceScreen() {
     }
 
     setSelectedTableId(String(table.id));
-    setPendingSelection([]);
+    clearPendingSelection();
     setTabletView('service');
 
     if (!table.orders?.length && table.status === 'AVAILABLE') {
@@ -392,10 +396,10 @@ function TabletServiceScreen() {
 
   const handleBackToTables = () => {
     setTabletView('tables');
-    setPendingSelection([]);
+    clearPendingSelection();
   };
 
-  const openNoteEditor = (item: PendingDraftItem) => {
+  const openNoteEditor = (item: any) => {
     setNoteEditorItemId(item.draftId);
     setNoteDraft(item.notes);
   };
@@ -405,13 +409,7 @@ function TabletServiceScreen() {
       return;
     }
 
-    setPendingSelection((currentItems) =>
-      currentItems.map((currentItem) =>
-        currentItem.draftId === noteEditorItemId
-          ? { ...currentItem, notes: noteDraft.trim() }
-          : currentItem,
-      ),
-    );
+    updateItemNote(noteEditorItemId, noteDraft.trim());
     setNoteEditorItemId(null);
     setNoteDraft('');
   };
@@ -421,40 +419,12 @@ function TabletServiceScreen() {
     setNoteDraft('');
   };
 
-  const addProductToSelection = (product: any) => {
+  const handleAddProduct = (product: any) => {
     if (!requireOperationalShift()) {
       return;
     }
-
-    setPendingSelection((currentItems) => {
-      const existingItem = currentItems.find((item) => item.productId === product.id);
-
-      if (existingItem) {
-        return currentItems.map((item) =>
-          item.productId === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item,
-        );
-      }
-
-      return [
-        ...currentItems,
-        {
-          draftId: `${product.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          productId: product.id,
-          name: product.name,
-          price: Number(product.price),
-          quantity: 1,
-          notes: '',
-        },
-      ];
-    });
+    handleAddProduct(product);
   };
-
-  const pendingSelectionTotal = pendingSelection.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0,
-  );
   const currentOrderTotal = Number(currentOrder?.totalAmount ?? 0);
   const selectedTableLabel = selectedTable?.name || selectedTable?.id || '--';
 
@@ -624,7 +594,7 @@ function TabletServiceScreen() {
 
                 <div ref={categoryRailRef} className="category-rail flex-1" onWheel={handleCategoryRailWheel}>
                 <button
-                  onClick={() => setActiveCategoryId('all')}
+                  onClick={() => handleCategorySelect(null)}
                   className={cn(
                     'category-chip active:scale-[0.98]',
                     activeCategoryId === 'all' && 'category-chip-active',
@@ -636,7 +606,7 @@ function TabletServiceScreen() {
                 {categories.map((category: any) => (
                   <button
                     key={category.id}
-                    onClick={() => setActiveCategoryId(String(category.id))}
+                    onClick={() => handleCategorySelect(String(category.id))}
                     className={cn(
                       'category-chip active:scale-[0.98]',
                       activeCategoryId === String(category.id) && 'category-chip-active',
@@ -672,7 +642,7 @@ function TabletServiceScreen() {
                   {products.map((product: any) => (
                     <button
                       key={product.id}
-                      onClick={() => addProductToSelection(product)}
+                      onClick={() => handleAddProduct(product)}
                       className="group relative overflow-hidden border border-outline-variant/10 bg-surface-container-low text-left transition-all hover:border-primary/30 hover:bg-surface-container-high active:scale-[0.99]"
                     >
                       <ProductVisual
@@ -684,14 +654,11 @@ function TabletServiceScreen() {
                         emojiClassName="text-5xl md:text-6xl"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/10" />
-                      <div className="relative z-10 flex min-h-[136px] flex-col justify-between px-3 py-3 md:min-h-[150px] md:px-4 md:py-4">
-                        <p className="line-clamp-3 text-[13px] font-black uppercase leading-[1.04] text-white md:text-[15px]">
+                      <div className="relative z-10 flex min-h-[116px] flex-col justify-between px-3 py-3 md:min-h-[124px] md:px-4 md:py-4">
+                        <p className="line-clamp-4 text-[16px] font-black uppercase leading-[1.02] text-white md:text-[20px]">
                           {product.name}
                         </p>
-                        <div className="mt-3 flex items-end justify-between md:mt-4">
-                          <span className="font-headline text-lg font-black text-primary md:text-2xl">
-                            {formatCurrency(Number(product.price))}
-                          </span>
+                        <div className="mt-3 flex items-end justify-end md:mt-4">
                           <span className="text-[7px] font-black uppercase tracking-[0.16em] text-white/75 md:text-[8px]">
                             Tocar para agregar
                           </span>
@@ -720,7 +687,7 @@ function TabletServiceScreen() {
                     Total
                   </p>
                   <p className="mt-1 font-headline text-2xl font-black text-primary">
-                    {formatCurrency(pendingSelectionTotal)}
+                    {formatCurrency(pendingSubtotal)}
                   </p>
                 </div>
               </div>
@@ -736,30 +703,12 @@ function TabletServiceScreen() {
                       key={item.draftId}
                       item={item}
                       onDecrease={() =>
-                        setPendingSelection((currentItems) =>
-                          currentItems
-                            .map((currentItem) =>
-                              currentItem.draftId === item.draftId
-                                ? { ...currentItem, quantity: currentItem.quantity - 1 }
-                                : currentItem,
-                            )
-                            .filter((currentItem) => currentItem.quantity > 0),
-                        )
+                        updatePendingQuantity(item.draftId, -1)
                       }
                       onIncrease={() =>
-                        setPendingSelection((currentItems) =>
-                          currentItems.map((currentItem) =>
-                            currentItem.draftId === item.draftId
-                              ? { ...currentItem, quantity: currentItem.quantity + 1 }
-                              : currentItem,
-                          ),
-                        )
+                        updatePendingQuantity(item.draftId, 1)
                       }
-                      onRemove={() =>
-                        setPendingSelection((currentItems) =>
-                          currentItems.filter((currentItem) => currentItem.draftId !== item.draftId),
-                        )
-                      }
+                      onRemove={() => removeItem(item.draftId)}
                       onEditNotes={() => openNoteEditor(item)}
                     />
                   ))
@@ -817,7 +766,7 @@ function TabletServiceScreen() {
             <div className="border-t border-outline-variant/10 px-3 py-3 md:px-5 md:py-4">
               <div className="grid grid-cols-2 gap-3">
                 <button
-                  onClick={() => setPendingSelection([])}
+                  onClick={() => clearPendingSelection()}
                   disabled={pendingSelection.length === 0}
                   className="flex items-center justify-center gap-2 border border-outline-variant/10 bg-surface-container-highest px-4 py-4 text-[10px] font-black uppercase tracking-[0.16em] text-on-surface disabled:opacity-40"
                 >

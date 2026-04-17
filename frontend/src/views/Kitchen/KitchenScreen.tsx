@@ -169,7 +169,9 @@ function KitchenCard({
   const diffMinutes = Math.floor((Date.now() - orderDate.getTime()) / 60000);
   const isLate = diffMinutes > 15;
   const isUrgent = diffMinutes > 25;
-  const cardAccent = isUrgent ? 'border-red-500' : isLate ? 'border-amber-400' : 'border-emerald-500';
+  
+  // Time-based indicator (Top Bar)
+  const timeAccent = isUrgent ? 'border-red-500' : isLate ? 'border-amber-400' : 'border-emerald-500';
   const timerTone = isUrgent
     ? 'bg-red-500/10 text-red-400 border-red-500/20'
     : isLate
@@ -179,6 +181,30 @@ function KitchenCard({
   const currentStatus = order.status === 'COMPLETED' ? 'READY' : order.status;
   const action = nextActionByStatus[currentStatus];
   const service = getServiceVisual(order);
+
+  // Status-based colors (Whole Card)
+  const statusColors: Record<Exclude<KitchenStatus, 'COMPLETED'>, { bg: string; border: string; header: string; ring: string }> = {
+    PENDING: {
+      bg: surfaceMode ? 'bg-[#171a1d]' : 'bg-surface-container',
+      border: 'border-white/10',
+      header: 'bg-surface-container-high',
+      ring: 'ring-transparent',
+    },
+    PREPARING: {
+      bg: surfaceMode ? 'bg-[#1e1a0a]' : 'bg-amber-950/20',
+      border: 'border-amber-500/40',
+      header: surfaceMode ? 'bg-amber-500/20' : 'bg-amber-500/10',
+      ring: 'ring-amber-500/20',
+    },
+    READY: {
+      bg: surfaceMode ? 'bg-[#0a1e12]' : 'bg-emerald-950/20',
+      border: 'border-emerald-500/40',
+      header: surfaceMode ? 'bg-emerald-500/20' : 'bg-emerald-500/10',
+      ring: 'ring-emerald-500/20',
+    },
+  };
+
+  const colors = statusColors[currentStatus];
 
   const statusMutation = useMutation({
     mutationFn: ({ status }: { status: KitchenStatus }) => updateKitchenOrderStatus(order.id, status),
@@ -194,14 +220,19 @@ function KitchenCard({
   return (
     <article
       className={cn(
-        'flex h-full flex-col overflow-hidden border-t-4 bg-surface-container shadow-xl',
-        cardAccent,
-        surfaceMode && 'rounded-lg border border-outline-variant/10 border-t-4 bg-[#171a1d] shadow-[0_12px_30px_rgba(0,0,0,0.28)]',
+        'flex h-full flex-col overflow-hidden border-t-4 transition-all duration-300 ring-1',
+        timeAccent, // Top border stays time-based
+        colors.bg,
+        colors.border,
+        colors.ring,
+        surfaceMode && 'rounded-lg shadow-[0_12px_30px_rgba(0,0,0,0.28)]',
+        !surfaceMode && 'shadow-xl'
       )}
     >
       <div
         className={cn(
-          'border-b border-outline-variant/10 bg-surface-container-high',
+          'border-b border-outline-variant/10',
+          colors.header,
           surfaceMode ? 'space-y-1.5 p-2.5 md:p-3' : 'space-y-3 p-3',
         )}
       >

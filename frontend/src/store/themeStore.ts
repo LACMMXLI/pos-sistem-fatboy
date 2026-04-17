@@ -19,7 +19,7 @@ const applyThemeClass = (mode: ThemeMode) => {
 export const useThemeStore = create<ThemeState>()(
   persist(
     (set, get) => ({
-      mode: 'light',
+      mode: 'dark',
       setMode: (mode) => {
         applyThemeClass(mode);
         set({ mode });
@@ -35,6 +35,6 @@ export const useThemeStore = create<ThemeState>()(
 );
 
 export const initTheme = () => {
-  const mode = useThemeStore.getState().mode || 'light';
+  const mode = useThemeStore.getState().mode || 'dark';
   applyThemeClass(mode);
 };

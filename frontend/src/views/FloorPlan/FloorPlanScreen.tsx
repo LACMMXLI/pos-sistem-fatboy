@@ -35,6 +35,10 @@ import { useAuthStore } from '../../store/authStore';
 import { AdminPasswordModal } from '../../components/Modals/AdminPasswordModal';
 import { PaymentModal } from '../../components/Modals/PaymentModal';
 import { ProductVisual } from '../../components/ui/ProductVisual';
+import { useMenu } from '../../hooks/useMenu';
+import { useOrderDraft } from '../../hooks/useOrderDraft';
+import { CategoryRail } from '../../components/pos/CategoryRail';
+import { ProductCard } from '../../components/pos/ProductCard';
 
 type PendingTableItem = {
   productId: number;
@@ -54,8 +58,6 @@ export function FloorPlanScreen() {
   const [isAddItemsOpen, setIsAddItemsOpen] = useState(false);
   const [isPayOpen, setIsPayOpen] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
-  const [activeCategoryId, setActiveCategoryId] = useState<string>('all');
-  const [pendingItems, setPendingItems] = useState<PendingTableItem[]>([]);
   const [selectedWaiterId, setSelectedWaiterId] = useState<string>('');
   const { taxRate, taxEnabled, restaurantName } = useSettingsStore();
 
@@ -75,18 +77,21 @@ export function FloorPlanScreen() {
     queryFn: () => getTableById(selectedTableId as string),
     enabled: !!selectedTableId,
   });
+  const { 
+    categories, 
+    products, 
+    activeCategoryId, 
+    isLoadingProducts, 
+    handleCategorySelect 
+  } = useMenu();
 
-  const { data: categories = [] } = useQuery({
-    queryKey: ['categories'],
-    queryFn: getCategories,
-    enabled: isAddItemsOpen,
-  });
-
-  const { data: products = [] } = useQuery({
-    queryKey: ['products', activeCategoryId],
-    queryFn: () => getProducts(activeCategoryId === 'all' ? undefined : activeCategoryId),
-    enabled: isAddItemsOpen,
-  });
+  const {
+    items: pendingItems,
+    total: pendingSubtotal,
+    addItem: addProductToPendingItems,
+    updateQuantity: updatePendingQuantity,
+    clearDraft: clearPendingItems,
+  } = useOrderDraft();
 
   const { data: waiters = [] } = useQuery({
     queryKey: ['waiters'],
@@ -102,29 +107,6 @@ export function FloorPlanScreen() {
   const tax = Number(currentOrder?.taxAmount ?? (taxEnabled ? subtotal * (taxRate / 100) : 0));
   const total = Number(currentOrder?.totalAmount ?? subtotal + tax);
   const remaining = Number(currentOrder?.remainingAmount ?? 0);
-
-  const pendingSubtotal = pendingItems.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0,
-  );
-
-  const scrollCategoryRail = (direction: 'left' | 'right') => {
-    categoryRailRef.current?.scrollBy({
-      left: direction === 'left' ? -240 : 240,
-      behavior: 'smooth',
-    });
-  };
-
-  const handleCategoryRailWheel = (event: React.WheelEvent<HTMLDivElement>) => {
-    const rail = categoryRailRef.current;
-    if (!rail) return;
-
-    if (Math.abs(event.deltaY) < Math.abs(event.deltaX) && event.deltaX === 0) {
-      return;
-    }
-
-    rail.scrollLeft += event.deltaY !== 0 ? event.deltaY : event.deltaX;
-  };
 
   const addItemsMutation = useMutation({
     mutationFn: async () => {
@@ -149,7 +131,7 @@ export function FloorPlanScreen() {
       });
     },
     onSuccess: () => {
-      setPendingItems([]);
+      clearPendingItems();
       setIsAddItemsOpen(false);
       queryClient.invalidateQueries({ queryKey: queryKeys.tables });
       queryClient.invalidateQueries({ queryKey: ['table', selectedTableId] });
@@ -219,29 +201,6 @@ export function FloorPlanScreen() {
       toast.error(error?.response?.data?.message || error.message || 'No se pudo liberar la mesa');
     },
   });
-
-  const addProductToPendingItems = (product: any) => {
-    setPendingItems((currentItems) => {
-      const existingItem = currentItems.find((item) => item.productId === product.id);
-      if (existingItem) {
-        return currentItems.map((item) =>
-          item.productId === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item,
-        );
-      }
-
-      return [
-        ...currentItems,
-        {
-          productId: product.id,
-          name: product.name,
-          price: Number(product.price),
-          quantity: 1,
-        },
-      ];
-    });
-  };
 
   const canOpenAddItems = !!selectedTableId;
   const canPrint = !!currentOrder?.id;
@@ -401,8 +360,8 @@ export function FloorPlanScreen() {
               variant="bright"
               disabled={!canOpenAddItems || addItemsMutation.isPending}
               onClick={() => {
-                setPendingItems([]);
-                setActiveCategoryId('all');
+                clearPendingItems();
+                handleCategorySelect(null);
                 setSelectedWaiterId('');
                 setIsAddItemsOpen(true);
               }}
@@ -425,77 +384,27 @@ export function FloorPlanScreen() {
           <div className="flex h-[70vh] gap-2.5">
             <div className="min-h-0 flex-1 flex flex-col min-w-0">
               <div className="shrink-0 border-b border-outline-variant/10 pb-2">
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => scrollCategoryRail('left')}
-                    className="category-rail-nav"
-                    aria-label="Desplazar categorias a la izquierda"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </button>
-
-                <div ref={categoryRailRef} className="category-rail flex-1" onWheel={handleCategoryRailWheel}>
-                  <button
-                    onClick={() => setActiveCategoryId('all')}
-                    className={cn('category-chip active:scale-[0.98]', activeCategoryId === 'all' && 'category-chip-active')}
-                    style={getCategoryChipStyle('all', 'Todos')}
-                  >
-                    <span className="category-chip-name">Todos</span>
-                  </button>
-                  {categories.map((category: any) => (
-                    <button
-                      key={category.id}
-                      onClick={() => setActiveCategoryId(category.id.toString())}
-                      className={cn(
-                        'category-chip active:scale-[0.98]',
-                        activeCategoryId === category.id.toString() && 'category-chip-active',
-                      )}
-                      style={getCategoryChipStyle(String(category.id), category.name ?? '')}
-                    >
-                      <span className="category-chip-name line-clamp-2">{category.name}</span>
-                    </button>
-                  ))}
-                </div>
-
-                  <button
-                    type="button"
-                    onClick={() => scrollCategoryRail('right')}
-                    className="category-rail-nav"
-                    aria-label="Desplazar categorias a la derecha"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                </div>
+                <CategoryRail 
+                  categories={categories} 
+                  activeCategoryId={activeCategoryId} 
+                  onCategorySelect={handleCategorySelect} 
+                />
               </div>
 
-              <div
-                className="mt-1.5 min-h-0 flex-1 overflow-y-auto border border-outline-variant/10 custom-scrollbar"
-                onWheelCapture={(event) => event.stopPropagation()}
-              >
-                <div className="grid grid-cols-3 gap-1 p-1 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7">
-                  {products.map((product: any) => (
-                    <button
-                      key={product.id}
-                      onClick={() => addProductToPendingItems(product)}
-                      className="group relative min-h-[92px] overflow-hidden border border-outline-variant/10 bg-surface-container-high text-left transition-colors hover:border-primary/50"
-                    >
-                      <ProductVisual
-                        imageUrl={product.imageUrl}
-                        icon={product.icon}
-                        alt={product.name}
-                        className="absolute inset-0"
-                        imageClassName="opacity-65 transition-opacity group-hover:opacity-82"
-                        emojiClassName="text-5xl"
+              <div className="mt-1.5 min-h-0 flex-1 overflow-y-auto border border-outline-variant/10 custom-scrollbar">
+                {isLoadingProducts ? (
+                  <div className="flex h-full items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-1 p-1 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7">
+                    {products.map((product: any) => (
+                      <ProductCard 
+                        key={product.id} 
+                        product={product} 
+                        onClick={addProductToPendingItems} 
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/12" />
-                      <div className="relative z-10 flex min-h-[92px] flex-col justify-between p-1.5">
-                        <div className="line-clamp-3 text-[10px] font-black uppercase leading-[1.02] text-white">{product.name}</div>
-                        <div className="mt-1 text-[11px] font-black text-primary">${Number(product.price).toFixed(2)}</div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -530,31 +439,21 @@ export function FloorPlanScreen() {
                   </div>
                 ) : (
                   pendingItems.map((item) => (
-                    <div key={item.productId} className="flex items-center justify-between gap-2 border border-outline-variant/10 bg-surface-container-high p-1.5">
-                      <div>
-                        <div className="text-[9px] font-black text-white uppercase">{item.name}</div>
+                    <div key={item.draftId} className="flex items-center justify-between gap-2 border border-outline-variant/10 bg-surface-container-high p-1.5">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[9px] font-black text-white uppercase truncate">{item.name}</div>
                         <div className="text-[8px] text-outline">{item.quantity} x ${item.price.toFixed(2)}</div>
                       </div>
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() =>
-                            setPendingItems((currentItems) =>
-                              currentItems
-                                .map((currentItem) =>
-                                  currentItem.productId === item.productId
-                                    ? { ...currentItem, quantity: currentItem.quantity - 1 }
-                                    : currentItem,
-                                )
-                                .filter((currentItem) => currentItem.quantity > 0),
-                            )
-                          }
+                          onClick={() => updatePendingQuantity(item.draftId, -1)}
                           className="w-6 h-6 flex items-center justify-center bg-surface text-white"
                         >
                           -
                         </button>
                         <span className="text-[9px] font-black text-white">{item.quantity}</span>
                         <button
-                          onClick={() => addProductToPendingItems(item)}
+                          onClick={() => updatePendingQuantity(item.draftId, 1)}
                           className="w-6 h-6 flex items-center justify-center bg-primary text-on-primary"
                         >
                           +
@@ -572,16 +471,12 @@ export function FloorPlanScreen() {
                 >
                   {addItemsMutation.isPending ? 'Guardando...' : currentOrder ? 'Agregar a la cuenta' : 'Crear cuenta'}
                 </button>
-                {!currentOrder && !isWaiterUser && !selectedWaiterId && (
-                  <p className="mt-2 text-[7px] font-bold uppercase tracking-widest text-error text-center">
-                    Selecciona un mesero antes de abrir la cuenta
-                  </p>
-                )}
               </div>
             </div>
           </div>
         </Modal>
       )}
+
 
       {isPayOpen && currentOrder && remaining > 0 && (
         <PaymentModal
