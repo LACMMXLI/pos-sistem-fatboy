@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
 
 export class FindOrCreateCustomerDto {
   @ApiProperty({ example: '6641234567', description: 'Telefono del cliente' })
@@ -48,4 +48,33 @@ export class RedeemProductDto {
   @IsOptional()
   @IsString()
   notes?: string;
+}
+
+export class AdjustCustomerPointsDto {
+  @ApiProperty({ example: 15, description: 'ID del cliente' })
+  @IsInt()
+  customerId: number;
+
+  @ApiProperty({
+    example: 'ADD',
+    description: 'Operacion a aplicar sobre los puntos',
+    enum: ['ADD', 'REMOVE', 'SET'],
+  })
+  @IsString()
+  @IsIn(['ADD', 'REMOVE', 'SET'])
+  operation: 'ADD' | 'REMOVE' | 'SET';
+
+  @ApiProperty({ example: 50, description: 'Cantidad de puntos para la operacion' })
+  @IsInt()
+  @Min(0)
+  points: number;
+
+  @ApiProperty({
+    example: 'Ajuste manual en caja',
+    required: false,
+    description: 'Descripcion opcional del ajuste',
+  })
+  @IsOptional()
+  @IsString()
+  description?: string;
 }

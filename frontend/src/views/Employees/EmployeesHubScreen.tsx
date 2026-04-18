@@ -82,9 +82,9 @@ export function EmployeesHubScreen() {
   };
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-surface">
-      <div className="border-b border-outline-variant/10 bg-surface-container-lowest px-2 pt-0.5">
-        <div className="mx-auto flex max-w-[1600px] items-end gap-0.5">
+    <div className="admin-shell h-full flex flex-col overflow-hidden">
+      <div className="border-b border-white/8 bg-black/14 px-4 py-3 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-2">
             {availableTabs.map((tab) => {
               const isActive = tab.id === activeTab;
 
@@ -93,23 +93,23 @@ export function EmployeesHubScreen() {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={cn(
-                    'flex items-center gap-1 rounded-t-sm border border-b-0 px-1.5 py-0.5 text-left transition-all active:scale-[0.99]',
+                    'flex items-center gap-2 rounded-full border px-3.5 py-2 text-left transition-all duration-300 active:scale-[0.99]',
                     isActive
-                      ? 'border-primary/30 bg-surface text-on-surface'
-                      : 'border-outline-variant/10 bg-surface-container-low text-outline hover:bg-surface-container-high hover:text-on-surface',
+                      ? 'border-primary/25 bg-primary/12 text-on-surface shadow-[0_12px_28px_rgba(255,215,0,0.08)]'
+                      : 'border-white/10 bg-white/[0.03] text-outline hover:border-white/16 hover:bg-white/[0.06] hover:text-on-surface',
                   )}
                 >
                   <div
                     className={cn(
-                      'flex h-4 w-4 items-center justify-center border shrink-0',
+                      'flex h-8 w-8 items-center justify-center rounded-full border shrink-0',
                       isActive
-                        ? 'border-primary/20 bg-primary/10 text-primary'
-                        : 'border-outline-variant/10 bg-surface-container-highest text-primary',
+                        ? 'border-primary/20 bg-primary/14 text-primary'
+                        : 'border-white/10 bg-black/20 text-outline',
                     )}
                   >
                     {tab.icon}
                   </div>
-                  <div className="min-w-0 text-[6px] font-headline font-black uppercase tracking-[0.1em] leading-none">
+                  <div className="min-w-0 text-[11px] font-headline font-black uppercase tracking-[0.12em] leading-none">
                     {tab.label}
                   </div>
                 </button>

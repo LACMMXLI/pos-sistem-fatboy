@@ -1,6 +1,31 @@
 type DesktopRuntimeConfig = {
   apiBaseUrl?: string;
   socketUrl?: string;
+  serverConfig?: DesktopServerConnectionConfig;
+  hasSavedServerConfig?: boolean;
+};
+
+export type DesktopServerConnectionConfig = {
+  protocol: 'http' | 'https';
+  host: string;
+  port: number;
+  origin?: string;
+  apiBaseUrl?: string;
+};
+
+export type DesktopServerConnectionState = {
+  hasSavedConfig: boolean;
+  config: DesktopServerConnectionConfig;
+  defaults: DesktopServerConnectionConfig;
+};
+
+export type DesktopServerConnectionTestResult = {
+  ok: boolean;
+  code: string;
+  message: string;
+  status?: number;
+  details?: string;
+  config?: DesktopServerConnectionConfig;
 };
 
 type DesktopPrintPayload = {
@@ -86,6 +111,17 @@ declare global {
   interface Window {
     fatboyDesktop?: {
       getRuntimeConfig?: () => DesktopRuntimeConfig;
+      getServerConfig?: () => Promise<DesktopServerConnectionState>;
+      testServerConfig?: (
+        payload: DesktopServerConnectionConfig,
+      ) => Promise<DesktopServerConnectionTestResult>;
+      saveServerConfig?: (
+        payload: DesktopServerConnectionConfig,
+      ) => Promise<{
+        ok: boolean;
+        message: string;
+        config: DesktopServerConnectionConfig;
+      }>;
       isDesktop?: () => boolean;
       getZoomFactor?: () => number;
       setZoomFactor?: (factor: number) => void;
@@ -145,6 +181,30 @@ export function getApiBaseUrl() {
 export function getSocketUrl() {
   const desktopConfig = getDesktopConfig();
   return desktopConfig.socketUrl || import.meta.env.VITE_SOCKET_URL || '/';
+}
+
+export async function getDesktopServerConfig() {
+  try {
+    return await window.fatboyDesktop?.getServerConfig?.();
+  } catch {
+    return undefined;
+  }
+}
+
+export async function testDesktopServerConfig(payload: DesktopServerConnectionConfig) {
+  try {
+    return await window.fatboyDesktop?.testServerConfig?.(payload);
+  } catch (error: any) {
+    return {
+      ok: false,
+      code: 'IPC_ERROR',
+      message: error?.message || 'No se pudo probar la conexión con el backend.',
+    } satisfies DesktopServerConnectionTestResult;
+  }
+}
+
+export async function saveDesktopServerConfig(payload: DesktopServerConnectionConfig) {
+  return window.fatboyDesktop?.saveServerConfig?.(payload);
 }
 
 export function isDesktopRuntime() {

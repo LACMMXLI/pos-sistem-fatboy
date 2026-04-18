@@ -187,10 +187,45 @@ export class CustomersService {
 
   async remove(id: number) {
     try {
-      await this.getCustomerOrThrow(id);
-      return await this.prisma.customer.delete({
-        where: { id },
+      const customer = await this.getCustomerOrThrow(id);
+
+      await this.prisma.$transaction(async (tx) => {
+        await tx.order.updateMany({
+          where: { customerAddressId: { in: customer.addresses.map((address) => address.id) } },
+          data: {
+            customerAddressId: null,
+          },
+        });
+
+        await tx.order.updateMany({
+          where: { customerId: id },
+          data: {
+            customerId: null,
+            customerAddressId: null,
+          },
+        });
+
+        await tx.loyaltyTransaction.deleteMany({
+          where: { customerId: id },
+        });
+
+        await tx.customerAddress.deleteMany({
+          where: { customerId: id },
+        });
+
+        await tx.loyaltyAccount.deleteMany({
+          where: { customerId: id },
+        });
+
+        await tx.customer.delete({
+          where: { id },
+        });
       });
+
+      return {
+        success: true,
+        customerId: id,
+      };
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
       this.logger.error(`Error deleting customer: ${error.message}`, error.stack);

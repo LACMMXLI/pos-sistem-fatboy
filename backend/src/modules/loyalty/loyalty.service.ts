@@ -7,7 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { RedeemProductDto } from './dto/loyalty.dto';
+import { AdjustCustomerPointsDto, RedeemProductDto } from './dto/loyalty.dto';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 
 @Injectable()
@@ -344,6 +344,107 @@ export class LoyaltyService {
 
       this.logger.error(`Error al canjear puntos: ${error.message}`, error.stack);
       throw new InternalServerErrorException('No fue posible canjear puntos');
+    }
+  }
+
+  async adjustCustomerPoints(
+    dto: AdjustCustomerPointsDto,
+    actor?: { id?: number; name?: string; role?: string },
+  ) {
+    const { customerId, operation, points, description } = dto;
+
+    if (!Number.isInteger(points) || points < 0) {
+      throw new BadRequestException('La cantidad de puntos debe ser un entero igual o mayor a cero');
+    }
+
+    try {
+      const result = await this.prisma.$transaction(async (tx) => {
+        const customer = await tx.customer.findUnique({
+          where: { id: customerId },
+          include: {
+            loyaltyAccount: true,
+          },
+        });
+
+        if (!customer) {
+          throw new NotFoundException('Cliente no encontrado');
+        }
+
+        const loyaltyAccount =
+          customer.loyaltyAccount ??
+          (await tx.loyaltyAccount.create({
+            data: {
+              customerId: customer.id,
+            },
+          }));
+
+        const currentPoints = loyaltyAccount.points;
+        const nextPoints =
+          operation === 'SET'
+            ? points
+            : operation === 'ADD'
+              ? currentPoints + points
+              : currentPoints - points;
+
+        if (nextPoints < 0) {
+          throw new BadRequestException('El ajuste no puede dejar puntos negativos');
+        }
+
+        const delta = nextPoints - currentPoints;
+
+        const updatedAccount = await tx.loyaltyAccount.update({
+          where: { id: loyaltyAccount.id },
+          data: {
+            points: nextPoints,
+          },
+        });
+
+        if (delta !== 0) {
+          const actionLabel =
+            operation === 'SET'
+              ? `Ajuste manual de saldo a ${nextPoints} puntos`
+              : operation === 'ADD'
+                ? `Suma manual de ${points} puntos`
+                : `Descuento manual de ${points} puntos`;
+          const actorLabel = actor?.name?.trim() ? ` por ${actor.name.trim()}` : '';
+
+          await tx.loyaltyTransaction.create({
+            data: {
+              customerId: customer.id,
+              type: 'ADJUSTMENT',
+              points: delta,
+              description: description?.trim() || `${actionLabel}${actorLabel}`,
+            },
+          });
+        }
+
+        return {
+          customer,
+          currentPoints,
+          updatedAccount,
+          delta,
+        };
+      });
+
+      this.logger.log(
+        `Ajuste manual de puntos para cliente ${customerId}: ${operation} ${points} -> saldo ${result.updatedAccount.points}`,
+      );
+
+      return {
+        customerId: result.customer.id,
+        customerName: result.customer.name,
+        operation,
+        previousBalance: result.currentPoints,
+        pointsApplied: operation === 'SET' ? result.delta : points,
+        balance: result.updatedAccount.points,
+      };
+    } catch (error: any) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+
+      this.logger.error(`Error al ajustar puntos manualmente: ${error.message}`, error.stack);
+      throw new InternalServerErrorException('No fue posible ajustar los puntos del cliente');
     }
   }
 

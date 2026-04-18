@@ -12,11 +12,13 @@ import {
   ToggleRight,
   Trash2,
   X,
+  Search,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { cn } from '../../lib/utils';
+import { ProductCard } from '../../components/pos/ProductCard';
 import {
   PRODUCT_ICON_OPTIONS,
   ProductVisual,
@@ -118,7 +120,7 @@ const emptyRedeemableForm: RedeemableForm = {
 };
 
 const fieldClassName =
-  'w-full bg-surface-container-highest border border-outline-variant/20 py-1.5 px-2 text-[9px] text-on-surface focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all font-bold';
+  'w-full bg-black/40 border border-white/10 py-2 px-3 text-[10px] text-white focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all font-black uppercase tracking-widest placeholder:text-white/10 rounded-[2px]';
 
 export function ProductsScreen() {
   const queryClient = useQueryClient();
@@ -345,16 +347,16 @@ export function ProductsScreen() {
   };
 
   return (
-    <div className="h-full flex bg-surface overflow-hidden">
-      <div className="w-44 border-r border-outline-variant/10 flex flex-col bg-surface-container-low">
+    <div className="h-full flex bg-[#050505] overflow-hidden">
+      <div className="w-56 border-r border-white/5 flex flex-col bg-[#0a0a0a]">
         <div className="p-1.5 border-b border-outline-variant/10">
-          <div className="flex items-center justify-between mb-1">
-            <h2 className="font-headline text-sm font-black text-white tracking-tighter uppercase">Productos</h2>
-            <div className="flex gap-0.5">
-              <button onClick={invalidateCatalog} className="p-0.5 bg-surface-container-highest text-outline hover:text-white transition-all active:scale-95 border border-outline-variant/10">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="font-headline text-[11px] font-black text-white tracking-widest uppercase">Catálogo</h2>
+            <div className="flex gap-1">
+              <button onClick={invalidateCatalog} className="p-1.5 bg-white/5 text-white/40 hover:text-white transition-all active:scale-95 border border-white/10 rounded-[2px]">
                 <RefreshCw className="w-3 h-3" />
               </button>
-              <button onClick={openNewProductModal} className="p-0.5 bg-primary text-on-primary hover:bg-primary-container transition-all active:scale-95">
+              <button onClick={openNewProductModal} className="p-1.5 bg-primary text-black hover:brightness-110 transition-all active:scale-95 rounded-[2px]">
                 <PlusCircle className="w-3 h-3" />
               </button>
             </div>
@@ -402,15 +404,15 @@ export function ProductsScreen() {
                   onClick={() => setSelectedCategoryId(category.id)}
                   onDoubleClick={() => openEditCategoryModal(category)}
                   className={cn(
-                    'w-full p-1.5 flex flex-col gap-0 border-b border-outline-variant/5 transition-all text-left',
-                    selectedCategoryId === category.id ? 'bg-primary/10 border-l-4 border-l-primary' : 'hover:bg-surface-container-high',
+                    'w-full p-2.5 flex flex-col gap-0 border-b border-white/5 transition-all text-left',
+                    selectedCategoryId === category.id ? 'bg-primary/10 border-l-2 border-l-primary' : 'hover:bg-white/5',
                   )}
                 >
                   <div className="flex justify-between items-start gap-2">
-                    <span className="font-headline font-bold text-on-surface text-[9px] uppercase tracking-tight truncate">{category.name}</span>
-                    <span className="text-[6px] font-bold text-outline uppercase">{category._count?.products ?? 0}</span>
+                    <span className={cn("font-headline font-black text-[10px] uppercase tracking-tight truncate", selectedCategoryId === category.id ? "text-primary" : "text-white/80")}>{category.name}</span>
+                    <span className="text-[7px] font-black text-white/20 uppercase">{category._count?.products ?? 0}</span>
                   </div>
-                  <span className="text-[6px] text-outline font-bold uppercase tracking-widest">{category.isActive ? 'Visible' : 'Oculta'}</span>
+                  <span className="text-[7px] text-white/30 font-bold uppercase tracking-widest">{category.isActive ? 'Visible' : 'Oculta'}</span>
                 </button>
               ))
             )
@@ -419,12 +421,12 @@ export function ProductsScreen() {
               <div className="p-4 flex justify-center"><Loader2 className="w-4 h-4 animate-spin text-primary" /></div>
             ) : (
               orderedCategories.map((category) => (
-                <button key={category.id} onClick={() => openEditCategoryModal(category)} className="w-full p-1.5 flex flex-col gap-0 border-b border-outline-variant/5 transition-all text-left hover:bg-surface-container-high">
+                <button key={category.id} onClick={() => openEditCategoryModal(category)} className="w-full p-2.5 flex flex-col gap-0 border-b border-white/5 transition-all text-left hover:bg-white/5">
                   <div className="flex justify-between items-start gap-2">
-                    <span className="font-headline font-bold text-on-surface text-[9px] uppercase tracking-tight truncate">{category.name}</span>
-                    <PencilLine className="w-2.5 h-2.5 text-outline" />
+                    <span className="font-headline font-black text-white/80 text-[10px] uppercase tracking-tight truncate">{category.name}</span>
+                    <PencilLine className="w-3 h-3 text-white/20" />
                   </div>
-                  <span className="text-[6px] text-outline font-bold uppercase tracking-widest">Orden {category.displayOrder ?? 0} • {category._count?.products ?? 0} productos</span>
+                  <span className="text-[7px] text-white/30 font-bold uppercase tracking-widest">Orden {category.displayOrder ?? 0} • {category._count?.products ?? 0} p.</span>
                 </button>
               ))
             )
@@ -432,75 +434,54 @@ export function ProductsScreen() {
             <div className="p-4 flex justify-center"><Loader2 className="w-4 h-4 animate-spin text-primary" /></div>
           ) : (
             redeemables.map((redeemable) => (
-              <button key={redeemable.id} onClick={() => openEditRedeemableModal(redeemable)} className="w-full p-1.5 flex flex-col gap-0 border-b border-outline-variant/5 transition-all text-left hover:bg-surface-container-high">
+              <button key={redeemable.id} onClick={() => openEditRedeemableModal(redeemable)} className="w-full p-2.5 flex flex-col gap-0 border-b border-white/5 transition-all text-left hover:bg-white/5">
                 <div className="flex justify-between items-start gap-2">
-                  <span className="font-headline font-bold text-on-surface text-[9px] uppercase tracking-tight truncate">{redeemable.product.name}</span>
-                  <Gift className="w-2.5 h-2.5 text-outline" />
+                  <span className="font-headline font-black text-white/80 text-[10px] uppercase tracking-tight truncate">{redeemable.product.name}</span>
+                  <Gift className="w-3 h-3 text-white/20" />
                 </div>
-                <span className="text-[6px] text-outline font-bold uppercase tracking-widest">{redeemable.pointsCost} pts • {redeemable.isActive ? 'Activo' : 'Pausado'}</span>
+                <span className="text-[7px] text-white/30 font-bold uppercase tracking-widest">{redeemable.pointsCost} pts • {redeemable.isActive ? 'Activo' : 'Pausado'}</span>
               </button>
             ))
           )}
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col bg-surface overflow-hidden">
+      <div className="flex-1 flex flex-col bg-[#050505] overflow-hidden">
         {activeTab === 'products' ? (
           <>
-            <div className="p-1.5 border-b border-outline-variant/10 flex items-center justify-between">
-              <div className="text-[8px] font-bold uppercase tracking-widest text-outline">
-                {selectedCategoryId ? `Productos de ${orderedCategories.find((item) => item.id === selectedCategoryId)?.name ?? 'categoría'}` : 'Todos los productos'}
+            <div className="p-2 border-b border-white/5 flex items-center justify-between bg-[#0a0a0a]">
+              <div className="text-[9px] font-black uppercase tracking-widest text-white/40">
+                {selectedCategoryId ? `Categoría: ${orderedCategories.find((item) => item.id === selectedCategoryId)?.name ?? '...'}` : 'Todos los productos'}
               </div>
-              <div className="text-[7px] font-bold uppercase tracking-widest text-outline">{filteredProducts.length} productos</div>
+              <div className="text-[8px] font-black uppercase tracking-widest text-primary/60">{filteredProducts.length} Ítems</div>
             </div>
 
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-1.5">
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
               {isLoadingProducts ? (
-                <div className="h-full flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+                <div className="h-full flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
               ) : filteredProducts.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-outline gap-2">
-                  <PackageSearch className="w-10 h-10 opacity-10" />
-                  <p className="font-headline font-bold uppercase tracking-widest text-[10px] opacity-30">No hay productos para mostrar</p>
+                <div className="h-full flex flex-col items-center justify-center text-white/10 gap-2">
+                  <PackageSearch className="w-12 h-12" />
+                  <p className="font-headline font-black uppercase tracking-widest text-[10px]">Sin productos</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-3 md:grid-cols-5 xl:grid-cols-6 gap-1">
+                <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-2">
                   {filteredProducts.map((product) => (
-                    <button key={product.id} onClick={() => openEditProductModal(product)} className="group relative h-24 overflow-hidden border border-outline-variant/10 bg-surface-container-low text-left transition-all hover:border-primary/35 hover:bg-surface-container-high">
-                      <ProductVisual
-                        imageUrl={product.imageUrl}
-                        icon={product.icon}
-                        alt={product.name}
-                        className="absolute inset-0"
-                        imageClassName="opacity-70 transition-opacity group-hover:opacity-85"
-                        fallbackClassName="bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.16),_transparent_55%),linear-gradient(135deg,_rgba(17,24,39,0.96),_rgba(38,38,42,0.96))]"
-                        emojiClassName="text-5xl"
+                    <div key={product.id} className="relative">
+                      <ProductCard 
+                        product={product} 
+                        onClick={() => openEditProductModal(product)} 
+                        className={cn(!product.isAvailable && "opacity-50 grayscale-[0.5]")}
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/58 to-black/12" />
-                      <div className="relative z-10 flex h-full flex-col justify-between p-1.5">
-                        <div className="flex items-start justify-between gap-2">
-                          <span className={cn('rounded-full border px-1.5 py-0.5 text-[7px] font-black uppercase tracking-[0.18em]', product.isAvailable ? 'border-primary/25 bg-primary/18 text-primary' : 'border-white/10 bg-black/35 text-white/70')}>
-                            {product.isAvailable ? 'Activo' : 'Pausado'}
-                          </span>
-                          <span className="rounded-full border border-white/10 bg-black/45 px-1.5 py-0.5 text-[7px] font-black uppercase tracking-[0.18em] text-white/85">
-                            {product.category?.name || 'S/C'}
-                          </span>
+                      {!product.isAvailable && (
+                        <div className="absolute top-0 right-0 z-20 pointer-events-none">
+                           <span className="bg-red-600 text-white text-[6px] font-black uppercase px-1 py-0.5 rounded-bl-[2px]">PAUSADO</span>
                         </div>
-                        <div>
-                          <div
-                            className="line-clamp-3 font-headline text-[12px] font-black uppercase leading-[1.02] tracking-tight text-white sm:text-[14px]"
-                            style={{ textShadow: '0px 2px 6px rgba(0,0,0,0.95)' }}
-                          >
-                            {product.name}
-                          </div>
-                          <div
-                            className="mt-0.5 text-[13px] font-black text-primary sm:text-[15px]"
-                            style={{ textShadow: '0px 2px 6px rgba(0,0,0,0.95)' }}
-                          >
-                            ${Number(product.price).toFixed(2)}
-                          </div>
-                        </div>
+                      )}
+                      <div className="absolute top-0 left-0 z-20 pointer-events-none">
+                         <span className="bg-black/60 text-white/40 text-[6px] font-black uppercase px-1 py-0.5 rounded-br-[2px] border-r border-b border-white/10">${Number(product.price).toFixed(2)}</span>
                       </div>
-                    </button>
+                    </div>
                   ))}
                 </div>
               )}
@@ -512,14 +493,14 @@ export function ProductsScreen() {
             isLoading={isLoadingCategories}
             emptyMessage="No hay categorías"
             rows={orderedCategories.map((category) => (
-              <button key={category.id} onClick={() => openEditCategoryModal(category)} className="w-full p-1.5 flex items-center justify-between border-b border-outline-variant/5 hover:bg-surface-container-high text-left">
+              <button key={category.id} onClick={() => openEditCategoryModal(category)} className="w-full p-2.5 flex items-center justify-between border-b border-white/5 hover:bg-white/5 text-left">
                 <div>
-                  <div className="text-[9px] font-bold uppercase text-on-surface">{category.name}</div>
-                  <div className="text-[6px] font-bold uppercase tracking-widest text-outline">Orden {category.displayOrder ?? 0}</div>
+                  <div className="text-[10px] font-black uppercase text-white/90">{category.name}</div>
+                  <div className="text-[7px] font-bold uppercase tracking-widest text-white/30">Orden {category.displayOrder ?? 0}</div>
                 </div>
                 <div className="text-right">
-                  <div className="text-[7px] font-black text-on-surface">{category._count?.products ?? 0}</div>
-                  <div className="text-[6px] font-bold uppercase tracking-widest text-outline">{category.isActive ? 'Visible' : 'Oculta'}</div>
+                  <div className="text-[8px] font-black text-white/90">{category._count?.products ?? 0}</div>
+                  <div className="text-[7px] font-bold uppercase tracking-widest text-primary/60">{category.isActive ? 'Visible' : 'Oculta'}</div>
                 </div>
               </button>
             ))}
@@ -530,14 +511,14 @@ export function ProductsScreen() {
             isLoading={isLoadingRedeemables}
             emptyMessage="No hay canjeables"
             rows={redeemables.map((redeemable) => (
-              <button key={redeemable.id} onClick={() => openEditRedeemableModal(redeemable)} className="w-full p-1.5 flex items-center justify-between border-b border-outline-variant/5 hover:bg-surface-container-high text-left">
+              <button key={redeemable.id} onClick={() => openEditRedeemableModal(redeemable)} className="w-full p-2.5 flex items-center justify-between border-b border-white/5 hover:bg-white/5 text-left">
                 <div>
-                  <div className="text-[9px] font-bold uppercase text-on-surface">{redeemable.product.name}</div>
-                  <div className="text-[6px] font-bold uppercase tracking-widest text-outline">{redeemable.product.category?.name || 'S/C'}</div>
+                  <div className="text-[10px] font-black uppercase text-white/90">{redeemable.product.name}</div>
+                  <div className="text-[7px] font-bold uppercase tracking-widest text-white/30">{redeemable.product.category?.name || 'S/C'}</div>
                 </div>
                 <div className="text-right">
-                  <div className="text-[7px] font-black text-primary">{redeemable.pointsCost} pts</div>
-                  <div className="text-[6px] font-bold uppercase tracking-widest text-outline">{redeemable.isActive ? 'Activo' : 'Pausado'}</div>
+                  <div className="text-[8px] font-black text-primary">{redeemable.pointsCost} pts</div>
+                  <div className="text-[7px] font-bold uppercase tracking-widest text-white/30">{redeemable.isActive ? 'Activo' : 'Pausado'}</div>
                 </div>
               </button>
             ))}
@@ -546,93 +527,73 @@ export function ProductsScreen() {
       </div>
 
       {productModalId !== null && (
-        <CompactModal title={typeof productModalId === 'number' ? 'Editar producto' : 'Nuevo producto'} onClose={() => setProductModalId(null)} className="max-w-5xl" bodyClassName="max-h-[82vh] p-3 md:p-4" footer={
+        <CompactModal title={typeof productModalId === 'number' ? 'Editar producto' : 'Nuevo producto'} onClose={() => setProductModalId(null)} className="max-w-2xl" bodyClassName="max-h-[85vh] p-3" footer={
           <>
             {typeof productModalId === 'number' && (
-              <button onClick={() => deleteProductMutation.mutate(productModalId)} className="px-3 py-1.5 bg-error/10 text-error border border-error/20 text-[8px] font-black uppercase tracking-widest">
-                {deleteProductMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+              <button onClick={() => deleteProductMutation.mutate(productModalId)} className="px-4 py-2 bg-red-600/10 text-red-500 border border-red-600/20 text-[9px] font-black uppercase tracking-widest hover:bg-red-600/20 transition-all">
+                {deleteProductMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-4 h-4" />}
               </button>
             )}
-            <button onClick={() => setProductModalId(null)} className="px-3 py-1.5 bg-surface-container-highest text-outline border border-outline-variant/10 text-[8px] font-black uppercase tracking-widest">Cancelar</button>
-            <button onClick={submitProduct} className="px-3 py-1.5 bg-primary text-on-primary text-[8px] font-black uppercase tracking-widest">
-              {saveProductMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+            <button onClick={() => setProductModalId(null)} className="px-5 py-2 bg-white/5 text-white/40 border border-white/10 text-[9px] font-black uppercase tracking-widest hover:text-white transition-all">Cancelar</button>
+            <button onClick={submitProduct} className="px-8 py-2 bg-primary text-black text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all shadow-[0_0_20px_rgba(255,215,0,0.2)]">
+              {saveProductMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-4 h-4" />}
             </button>
           </>
         }>
-          <div className="grid gap-3 xl:grid-cols-[320px_minmax(0,1fr)]">
+          <div className="grid gap-4 md:grid-cols-[160px_1fr]">
             <div className="space-y-3">
               <ProductVisual
                 imageUrl={productForm.imageUrl}
                 icon={productForm.icon}
                 alt={productForm.name || 'Producto'}
-                className="h-[240px] border border-outline-variant/10 bg-surface-container-highest"
+                className="h-[140px] border border-white/10 bg-black/40 rounded-[2px]"
                 imageClassName="opacity-85"
-                emojiClassName="text-7xl"
+                emojiClassName="text-5xl"
               />
-              <div className="grid grid-cols-[64px_minmax(0,1fr)] gap-2 rounded-md border border-outline-variant/10 bg-surface-container-lowest p-2.5">
-                <div className="flex h-[64px] items-center justify-center border border-outline-variant/15 bg-surface-container-highest text-3xl">
-                  {PRODUCT_ICON_OPTIONS.find((option) => option.value === productForm.icon)?.emoji ?? '🍔'}
-                </div>
-                <div className="space-y-2">
-                  <Field label="Icono">
-                    <select
-                      value={productForm.icon}
-                      onChange={(e) => setProductForm((current) => ({ ...current, icon: e.target.value }))}
-                      className={fieldClassName}
-                    >
-                      {PRODUCT_ICON_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.emoji}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                  <p className="text-[8px] font-bold uppercase tracking-[0.12em] text-outline">
-                    Si no hay imagen se usa este icono.
-                  </p>
-                </div>
-              </div>
+              <Field label="Icono">
+                <select
+                  value={productForm.icon}
+                  onChange={(e) => setProductForm((current) => ({ ...current, icon: e.target.value }))}
+                  className={fieldClassName}
+                >
+                  {PRODUCT_ICON_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.emoji} {option.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <button onClick={() => setProductForm((c) => ({ ...c, isAvailable: !c.isAvailable }))} className="w-full flex justify-between items-center rounded-[2px] bg-white/[0.03] border border-white/10 px-3 py-2 hover:bg-white/[0.05] transition-all">
+                <span className="text-[8px] font-black uppercase tracking-widest text-white/40">Activo</span>
+                {productForm.isAvailable ? <ToggleRight className="w-4 h-4 text-primary" /> : <ToggleLeft className="w-4 h-4 text-white/10" />}
+              </button>
             </div>
 
-            <div className="space-y-3">
-              <div className="grid gap-2.5 md:grid-cols-[minmax(0,1.6fr)_132px_156px]">
-                <Field label="Nombre">
-                  <input value={productForm.name} onChange={(e) => setProductForm((c) => ({ ...c, name: e.target.value }))} className={fieldClassName} />
-                </Field>
-                <Field label="Precio">
-                  <input type="number" min="0" step="0.01" value={productForm.price} onChange={(e) => setProductForm((c) => ({ ...c, price: e.target.value }))} className={fieldClassName} />
-                </Field>
-                <Field label="Categoría">
-                  <select value={productForm.categoryId} onChange={(e) => setProductForm((c) => ({ ...c, categoryId: e.target.value }))} className={fieldClassName}>
-                    <option value="">Seleccione...</option>
-                    {orderedCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-                  </select>
-                </Field>
-              </div>
-
-              <div className="grid gap-2.5 md:grid-cols-[minmax(0,1fr)_180px]">
-                <Field label="URL de imagen">
-                  <input value={productForm.imageUrl} onChange={(e) => setProductForm((c) => ({ ...c, imageUrl: e.target.value }))} className={fieldClassName} placeholder="Pega la URL si el producto tiene foto" />
-                </Field>
-                <div className="flex">
-                  <button onClick={() => setProductForm((c) => ({ ...c, isAvailable: !c.isAvailable }))} className="w-full flex justify-between items-center rounded-md bg-surface-container-highest border border-outline-variant/10 px-2.5 py-2">
-                    <span className="text-[8px] font-bold uppercase tracking-widest text-on-surface">Activo</span>
-                    {productForm.isAvailable ? <ToggleRight className="w-5 h-5 text-primary" /> : <ToggleLeft className="w-5 h-5 text-outline" />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="rounded-md border border-outline-variant/10 bg-surface-container-lowest p-2.5">
-                <Field label="Descripción">
-                  <textarea
-                    rows={2}
-                    value={productForm.description}
-                    onChange={(e) => setProductForm((c) => ({ ...c, description: e.target.value }))}
-                    className={cn(fieldClassName, 'min-h-[72px] resize-none')}
-                    placeholder="Opcional"
-                  />
-                </Field>
-              </div>
+            <div className="grid gap-3 grid-cols-4">
+              <Field label="Nombre" className="col-span-4">
+                <input value={productForm.name} onChange={(e) => setProductForm((c) => ({ ...c, name: e.target.value }))} className={fieldClassName} />
+              </Field>
+              <Field label="Precio" className="col-span-2">
+                <input type="number" min="0" step="0.01" value={productForm.price} onChange={(e) => setProductForm((c) => ({ ...c, price: e.target.value }))} className={fieldClassName} />
+              </Field>
+              <Field label="Categoría" className="col-span-2">
+                <select value={productForm.categoryId} onChange={(e) => setProductForm((c) => ({ ...c, categoryId: e.target.value }))} className={fieldClassName}>
+                  <option value="">Seleccione...</option>
+                  {orderedCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+                </select>
+              </Field>
+              <Field label="URL de imagen" className="col-span-4">
+                <input value={productForm.imageUrl} onChange={(e) => setProductForm((c) => ({ ...c, imageUrl: e.target.value }))} className={fieldClassName} placeholder="https://..." />
+              </Field>
+              <Field label="Descripción" className="col-span-4">
+                <textarea
+                  rows={2}
+                  value={productForm.description}
+                  onChange={(e) => setProductForm((c) => ({ ...c, description: e.target.value }))}
+                  className={cn(fieldClassName, 'min-h-[60px] resize-none')}
+                  placeholder="Opcional"
+                />
+              </Field>
             </div>
           </div>
         </CompactModal>
@@ -642,22 +603,22 @@ export function ProductsScreen() {
         <CompactModal title={typeof categoryModalId === 'number' ? 'Editar categoría' : 'Nueva categoría'} onClose={() => setCategoryModalId(null)} footer={
           <>
             {typeof categoryModalId === 'number' && (
-              <button onClick={() => deleteCategoryMutation.mutate(categoryModalId)} className="px-3 py-1.5 bg-error/10 text-error border border-error/20 text-[8px] font-black uppercase tracking-widest">
-                {deleteCategoryMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+              <button onClick={() => deleteCategoryMutation.mutate(categoryModalId)} className="px-4 py-2 bg-red-600/10 text-red-500 border border-red-600/20 text-[9px] font-black uppercase tracking-widest hover:bg-red-600/20">
+                {deleteCategoryMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-4 h-4" />}
               </button>
             )}
-            <button onClick={() => setCategoryModalId(null)} className="px-3 py-1.5 bg-surface-container-highest text-outline border border-outline-variant/10 text-[8px] font-black uppercase tracking-widest">Cancelar</button>
-            <button onClick={submitCategory} className="px-3 py-1.5 bg-primary text-on-primary text-[8px] font-black uppercase tracking-widest">
-              {saveCategoryMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+            <button onClick={() => setCategoryModalId(null)} className="px-5 py-2 bg-white/5 text-white/40 border border-white/10 text-[9px] font-black uppercase tracking-widest">Cancelar</button>
+            <button onClick={submitCategory} className="px-8 py-2 bg-primary text-black text-[9px] font-black uppercase tracking-widest">
+              {saveCategoryMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-4 h-4" />}
             </button>
           </>
         }>
-          <div className="space-y-2">
-            <Field label="Nombre"><input value={categoryForm.name} onChange={(e) => setCategoryForm((c) => ({ ...c, name: e.target.value }))} className={fieldClassName} /></Field>
-            <Field label="Orden"><input type="number" min="0" step="1" value={categoryForm.displayOrder} onChange={(e) => setCategoryForm((c) => ({ ...c, displayOrder: e.target.value }))} className={fieldClassName} /></Field>
-            <button onClick={() => setCategoryForm((c) => ({ ...c, isActive: !c.isActive }))} className="w-full flex justify-between items-center bg-surface-container-highest border border-outline-variant/10 px-2 py-2">
-              <span className="text-[8px] font-bold uppercase tracking-widest text-on-surface">Categoría visible</span>
-              {categoryForm.isActive ? <ToggleRight className="w-4 h-4 text-primary" /> : <ToggleLeft className="w-4 h-4 text-outline" />}
+          <div className="space-y-4">
+            <Field label="Nombre"><input value={categoryForm.name} onChange={(e) => setCategoryForm((c) => ({ ...c, name: e.target.value }))} className={cn(fieldClassName, "border-white/10 bg-black/40")} /></Field>
+            <Field label="Orden"><input type="number" min="0" step="1" value={categoryForm.displayOrder} onChange={(e) => setCategoryForm((c) => ({ ...c, displayOrder: e.target.value }))} className={cn(fieldClassName, "border-white/10 bg-black/40")} /></Field>
+            <button onClick={() => setCategoryForm((c) => ({ ...c, isActive: !c.isActive }))} className="w-full flex justify-between items-center bg-white/[0.03] border border-white/10 px-3 py-2.5 transition-all hover:bg-white/[0.05]">
+              <span className="text-[9px] font-black uppercase tracking-widest text-white/80">Visible en el menú</span>
+              {categoryForm.isActive ? <ToggleRight className="w-5 h-5 text-primary" /> : <ToggleLeft className="w-5 h-5 text-white/20" />}
             </button>
           </div>
         </CompactModal>
@@ -667,27 +628,27 @@ export function ProductsScreen() {
         <CompactModal title={typeof redeemableModalId === 'number' ? 'Editar canje' : 'Nuevo canje'} onClose={() => setRedeemableModalId(null)} footer={
           <>
             {typeof redeemableModalId === 'number' && (
-              <button onClick={() => deleteRedeemableMutation.mutate(redeemableModalId)} className="px-3 py-1.5 bg-error/10 text-error border border-error/20 text-[8px] font-black uppercase tracking-widest">
-                {deleteRedeemableMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+              <button onClick={() => deleteRedeemableMutation.mutate(redeemableModalId)} className="px-4 py-2 bg-red-600/10 text-red-500 border border-red-600/20 text-[9px] font-black uppercase tracking-widest hover:bg-red-600/20">
+                {deleteRedeemableMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-4 h-4" />}
               </button>
             )}
-            <button onClick={() => setRedeemableModalId(null)} className="px-3 py-1.5 bg-surface-container-highest text-outline border border-outline-variant/10 text-[8px] font-black uppercase tracking-widest">Cancelar</button>
-            <button onClick={submitRedeemable} className="px-3 py-1.5 bg-primary text-on-primary text-[8px] font-black uppercase tracking-widest">
-              {saveRedeemableMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+            <button onClick={() => setRedeemableModalId(null)} className="px-5 py-2 bg-white/5 text-white/40 border border-white/10 text-[9px] font-black uppercase tracking-widest">Cancelar</button>
+            <button onClick={submitRedeemable} className="px-8 py-2 bg-primary text-black text-[9px] font-black uppercase tracking-widest">
+              {saveRedeemableMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-4 h-4" />}
             </button>
           </>
         }>
-          <div className="space-y-2">
+          <div className="space-y-4">
             <Field label="Producto base">
-              <select value={redeemableForm.productId} onChange={(e) => setRedeemableForm((c) => ({ ...c, productId: e.target.value }))} className={fieldClassName}>
+              <select value={redeemableForm.productId} onChange={(e) => setRedeemableForm((c) => ({ ...c, productId: e.target.value }))} className={cn(fieldClassName, "border-white/10 bg-black/40")}>
                 <option value="">Seleccione...</option>
                 {products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
               </select>
             </Field>
-            <Field label="Puntos"><input type="number" min="1" step="1" value={redeemableForm.pointsCost} onChange={(e) => setRedeemableForm((c) => ({ ...c, pointsCost: e.target.value }))} className={fieldClassName} /></Field>
-            <button onClick={() => setRedeemableForm((c) => ({ ...c, isActive: !c.isActive }))} className="w-full flex justify-between items-center bg-surface-container-highest border border-outline-variant/10 px-2 py-2">
-              <span className="text-[8px] font-bold uppercase tracking-widest text-on-surface">Disponible para canje</span>
-              {redeemableForm.isActive ? <ToggleRight className="w-4 h-4 text-primary" /> : <ToggleLeft className="w-4 h-4 text-outline" />}
+            <Field label="Puntos"><input type="number" min="1" step="1" value={redeemableForm.pointsCost} onChange={(e) => setRedeemableForm((c) => ({ ...c, pointsCost: e.target.value }))} className={cn(fieldClassName, "border-white/10 bg-black/40")} /></Field>
+            <button onClick={() => setRedeemableForm((c) => ({ ...c, isActive: !c.isActive }))} className="w-full flex justify-between items-center bg-white/[0.03] border border-white/10 px-3 py-2.5 transition-all hover:bg-white/[0.05]">
+              <span className="text-[9px] font-black uppercase tracking-widest text-white/80">Disponible para canje</span>
+              {redeemableForm.isActive ? <ToggleRight className="w-5 h-5 text-primary" /> : <ToggleLeft className="w-5 h-5 text-white/20" />}
             </button>
           </div>
         </CompactModal>
@@ -699,17 +660,17 @@ export function ProductsScreen() {
 function CompactTable({ title, isLoading, emptyMessage, rows }: { title: string; isLoading: boolean; emptyMessage: string; rows: React.ReactNode[] }) {
   return (
     <>
-      <div className="p-1.5 border-b border-outline-variant/10 flex items-center justify-between">
-        <div className="text-[8px] font-bold uppercase tracking-widest text-outline">{title}</div>
-        <div className="text-[7px] font-bold uppercase tracking-widest text-outline">{rows.length} registros</div>
+      <div className="p-2 border-b border-white/5 flex items-center justify-between bg-black/20">
+        <div className="text-[9px] font-black uppercase tracking-widest text-white/40">{title}</div>
+        <div className="text-[8px] font-black uppercase tracking-widest text-primary/60">{rows.length} REG.</div>
       </div>
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         {isLoading ? (
-          <div className="p-4 flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+          <div className="p-6 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
         ) : rows.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-outline gap-2">
-            <Tag className="w-10 h-10 opacity-10" />
-            <p className="font-headline font-bold uppercase tracking-widest text-[10px] opacity-30">{emptyMessage}</p>
+          <div className="h-full flex flex-col items-center justify-center text-white/10 gap-2">
+            <Tag className="w-12 h-12" />
+            <p className="font-headline font-black uppercase tracking-widest text-[10px]">{emptyMessage}</p>
           </div>
         ) : rows}
       </div>
@@ -717,10 +678,10 @@ function CompactTable({ title, isLoading, emptyMessage, rows }: { title: string;
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return (
-    <div>
-      <label className="block mb-1 text-[7px] font-bold uppercase tracking-widest text-outline">{label}</label>
+    <div className={className}>
+      <label className="block mb-1 text-[8px] font-black uppercase tracking-widest text-white/30">{label}</label>
       {children}
     </div>
   );
@@ -742,17 +703,17 @@ function CompactModal({
   bodyClassName?: string;
 }) {
   return (
-    <div className="absolute inset-0 z-[100] flex items-center justify-center p-3 md:p-4">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <motion.div initial={{ scale: 0.96, opacity: 0, y: 12 }} animate={{ scale: 1, opacity: 1, y: 0 }} className={cn("relative w-full max-w-2xl bg-surface-container-low border border-outline-variant/20 shadow-2xl overflow-hidden", className)}>
-        <div className="flex items-center justify-between border-b border-outline-variant/10 bg-surface-container-lowest px-3 py-2.5">
-          <h3 className="text-[11px] font-headline font-black uppercase tracking-widest text-white">{title}</h3>
-          <button onClick={onClose} className="p-1 bg-surface-container-highest text-outline hover:text-white transition-all active:scale-95 border border-outline-variant/10">
-            <X className="w-3 h-3" />
+    <div className="absolute inset-0 z-[100] flex items-center justify-center p-4">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+      <motion.div initial={{ scale: 0.96, opacity: 0, y: 12 }} animate={{ scale: 1, opacity: 1, y: 0 }} className={cn("relative w-full max-w-2xl bg-[#0a0a0a] border border-white/10 shadow-2xl overflow-hidden rounded-[2px]", className)}>
+        <div className="flex items-center justify-between border-b border-white/10 bg-[#0f0f0f] px-4 py-3">
+          <h3 className="text-[12px] font-headline font-black uppercase tracking-widest text-white">{title}</h3>
+          <button onClick={onClose} className="p-1.5 bg-white/5 text-white/40 hover:text-white transition-all active:scale-95 border border-white/10 rounded-[2px]">
+            <X className="w-4 h-4" />
           </button>
         </div>
-        <div className={cn("max-h-[75vh] overflow-y-auto custom-scrollbar p-2", bodyClassName)}>{children}</div>
-        <div className="flex justify-end gap-1 border-t border-outline-variant/10 bg-surface-container-lowest px-3 py-2.5">{footer}</div>
+        <div className={cn("max-h-[75vh] overflow-y-auto custom-scrollbar p-3", bodyClassName)}>{children}</div>
+        <div className="flex justify-end gap-2 border-t border-white/10 bg-[#0f0f0f] px-4 py-3">{footer}</div>
       </motion.div>
     </div>
   );

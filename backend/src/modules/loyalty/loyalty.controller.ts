@@ -3,7 +3,12 @@ import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nes
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { FindOrCreateCustomerDto, RedeemPointsDto, RedeemProductDto } from './dto/loyalty.dto';
+import {
+  AdjustCustomerPointsDto,
+  FindOrCreateCustomerDto,
+  RedeemPointsDto,
+  RedeemProductDto,
+} from './dto/loyalty.dto';
 import { LoyaltyService } from './loyalty.service';
 
 @ApiTags('Loyalty')
@@ -50,5 +55,13 @@ export class LoyaltyController {
   @ApiBody({ type: RedeemProductDto })
   redeemProduct(@Body() dto: RedeemProductDto, @Req() req: any) {
     return this.loyaltyService.redeemProduct(dto, req.user);
+  }
+
+  @Post('loyalty/adjust')
+  @Roles('ADMIN', 'SUPERVISOR')
+  @ApiOperation({ summary: 'Ajustar manualmente los puntos de fidelizacion del cliente' })
+  @ApiBody({ type: AdjustCustomerPointsDto })
+  adjustPoints(@Body() dto: AdjustCustomerPointsDto, @Req() req: any) {
+    return this.loyaltyService.adjustCustomerPoints(dto, req.user);
   }
 }

@@ -34,7 +34,7 @@ export default function ModalShell({
     >
       <div
         className={cn(
-          'flex max-h-[85vh] flex-col overflow-hidden border border-outline-variant/15 bg-surface-container-low text-on-surface shadow-[0_30px_90px_rgba(0,0,0,0.72)] transition-all duration-300',
+          'flex max-h-[88vh] flex-col overflow-hidden rounded-[1.5rem] border border-white/10 bg-[linear-gradient(180deg,rgba(30,30,30,0.98),rgba(18,18,18,0.98))] text-on-surface shadow-[0_30px_90px_rgba(0,0,0,0.72)] transition-all duration-300',
           size === 'sm' && 'max-w-md w-full',
           size === 'md' && 'max-w-xl w-full',
           size === 'lg' && 'max-w-3xl w-full',
@@ -43,30 +43,30 @@ export default function ModalShell({
         )}
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between gap-3 border-b border-outline-variant/10 bg-surface-container-lowest px-4 py-3">
+        <div className="flex items-center justify-between gap-3 border-b border-white/8 bg-black/20 px-5 py-4">
           <div>
-            <h3 className="font-headline text-[11px] font-black uppercase tracking-[0.2em] text-on-surface">{title}</h3>
+            <h3 className="font-headline text-[13px] font-black uppercase tracking-[0.18em] text-on-surface">{title}</h3>
             {description && (
-              <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.12em] text-outline">
+              <p className="mt-1 text-[11px] font-semibold text-on-surface-variant">
                 {description}
               </p>
             )}
           </div>
           <button
             type="button"
-            className="border border-outline-variant/10 bg-surface-container-high p-1.5 text-outline transition-all hover:border-primary/20 hover:text-white active:scale-95"
+            className="rounded-full border border-white/10 bg-white/[0.05] p-2 text-outline transition-all hover:border-primary/20 hover:text-white active:scale-95"
             onClick={onClose}
           >
              <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="custom-scrollbar flex-1 overflow-y-auto bg-surface px-4 py-3 md:px-5 md:py-4">
+        <div className="custom-scrollbar flex-1 overflow-y-auto bg-transparent px-5 py-4 md:px-6 md:py-5">
           {children}
         </div>
 
         {footer && (
-          <div className="border-t border-outline-variant/10 bg-surface-container-lowest px-4 py-3">
+          <div className="border-t border-white/8 bg-black/18 px-5 py-4">
             {footer}
           </div>
         )}

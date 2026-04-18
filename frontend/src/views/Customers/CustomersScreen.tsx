@@ -11,12 +11,15 @@ import {
   Users,
   Loader2,
   Coins,
+  Trash2,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '../../lib/utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
+  adjustCustomerLoyaltyPoints,
   createCustomer,
+  deleteCustomer,
   getCustomerById,
   getCustomerLoyalty,
   getCustomerOrders,
@@ -112,7 +115,12 @@ export function CustomersScreen() {
 
       <div className="flex-1 flex flex-col bg-surface overflow-hidden">
         {selectedCustomerId ? (
-          <CustomerDetails customerId={selectedCustomerId} />
+          <CustomerDetails
+            customerId={selectedCustomerId}
+            onDeleted={() => {
+              setSelectedCustomerId(null);
+            }}
+          />
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-outline gap-3">
             <Users className="w-12 h-12 opacity-10" />
@@ -148,9 +156,17 @@ export function CustomersScreen() {
   );
 }
 
-function CustomerDetails({ customerId }: { customerId: string }) {
+function CustomerDetails({
+  customerId,
+  onDeleted,
+}: {
+  customerId: string;
+  onDeleted: () => void;
+}) {
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
+  const [isAdjustingPoints, setIsAdjustingPoints] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { data: customer, isLoading: loadingCustomer } = useQuery({
     queryKey: ['customer-detail', customerId],
     queryFn: () => getCustomerById(customerId),
@@ -176,6 +192,31 @@ function CustomerDetails({ customerId }: { customerId: string }) {
   );
   const primaryAddress = customer?.addresses?.[0] ?? null;
   const isLoading = loadingCustomer || loadingOrders || loadingLoyalty;
+
+  const adjustPointsMutation = useMutation({
+    mutationFn: adjustCustomerLoyaltyPoints,
+    onSuccess: () => {
+      toast.success('Puntos de fidelización actualizados');
+      setIsAdjustingPoints(false);
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['customer-detail', customerId] });
+      queryClient.invalidateQueries({ queryKey: ['customer-loyalty', customerId] });
+    },
+    onError: (error: any) =>
+      toast.error(error?.response?.data?.message || 'No se pudieron ajustar los puntos'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteCustomer(customerId),
+    onSuccess: () => {
+      toast.success('Cliente eliminado correctamente');
+      setIsDeleting(false);
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      onDeleted();
+    },
+    onError: (error: any) =>
+      toast.error(error?.response?.data?.message || 'No se pudo eliminar el cliente'),
+  });
 
   if (isLoading) {
     return (
@@ -210,6 +251,13 @@ function CustomerDetails({ customerId }: { customerId: string }) {
         </div>
         <div className="flex gap-0.5">
           <button
+            onClick={() => setIsAdjustingPoints(true)}
+            className="p-1 bg-surface-container-highest text-outline hover:text-primary transition-all active:scale-95 border border-outline-variant/10"
+            title="Ajustar puntos"
+          >
+            <Coins className="w-3 h-3" />
+          </button>
+          <button
             onClick={() => setIsEditing(true)}
             className="p-1 bg-surface-container-highest text-outline hover:text-white transition-all active:scale-95 border border-outline-variant/10"
           >
@@ -217,6 +265,13 @@ function CustomerDetails({ customerId }: { customerId: string }) {
           </button>
           <button className="p-1 bg-surface-container-highest text-outline hover:text-white transition-all active:scale-95 border border-outline-variant/10">
             <History className="w-3 h-3" />
+          </button>
+          <button
+            onClick={() => setIsDeleting(true)}
+            className="p-1 bg-surface-container-highest text-outline hover:text-red-400 transition-all active:scale-95 border border-outline-variant/10"
+            title="Eliminar cliente"
+          >
+            <Trash2 className="w-3 h-3" />
           </button>
         </div>
       </div>
@@ -362,6 +417,58 @@ function CustomerDetails({ customerId }: { customerId: string }) {
           </motion.div>
         </div>
       )}
+
+      {isAdjustingPoints && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setIsAdjustingPoints(false)}
+          />
+          <motion.div
+            initial={{ scale: 0.96, opacity: 0, y: 16 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            className="relative w-full max-w-md bg-surface-container-low border border-outline-variant/20 shadow-2xl overflow-hidden"
+          >
+            <CustomerPointsForm
+              customer={customer}
+              currentPoints={loyalty?.points ?? 0}
+              isPending={adjustPointsMutation.isPending}
+              onCancel={() => setIsAdjustingPoints(false)}
+              onSubmit={(payload) =>
+                adjustPointsMutation.mutate({
+                  customerId: Number(customerId),
+                  ...payload,
+                })
+              }
+            />
+          </motion.div>
+        </div>
+      )}
+
+      {isDeleting && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setIsDeleting(false)}
+          />
+          <motion.div
+            initial={{ scale: 0.96, opacity: 0, y: 16 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            className="relative w-full max-w-sm bg-surface-container-low border border-outline-variant/20 shadow-2xl overflow-hidden"
+          >
+            <DeleteCustomerConfirm
+              customer={customer}
+              isPending={deleteMutation.isPending}
+              onCancel={() => setIsDeleting(false)}
+              onConfirm={() => deleteMutation.mutate()}
+            />
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
@@ -395,6 +502,199 @@ function formatAddress(address: any) {
   ]
     .filter(Boolean)
     .join(', ');
+}
+
+function CustomerPointsForm({
+  customer,
+  currentPoints,
+  isPending,
+  onCancel,
+  onSubmit,
+}: {
+  customer: any;
+  currentPoints: number;
+  isPending: boolean;
+  onCancel: () => void;
+  onSubmit: (payload: {
+    operation: 'ADD' | 'REMOVE' | 'SET';
+    points: number;
+    description?: string;
+  }) => void;
+}) {
+  const [operation, setOperation] = useState<'ADD' | 'REMOVE' | 'SET'>('ADD');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const formData = new FormData(e.target as HTMLFormElement);
+    const points = Number(formData.get('points') || 0);
+    const description = String(formData.get('description') || '').trim();
+
+    if (!Number.isInteger(points) || points < 0) {
+      toast.error('Captura una cantidad válida de puntos');
+      return;
+    }
+
+    if (operation !== 'SET' && points <= 0) {
+      toast.error('La cantidad debe ser mayor a cero');
+      return;
+    }
+
+    onSubmit({
+      operation,
+      points,
+      description: description || undefined,
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="flex max-h-[85vh] flex-col overflow-y-auto custom-scrollbar p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <div>
+          <h1 className="mb-0 text-sm font-black leading-none tracking-tighter text-white font-headline uppercase">
+            Ajustar puntos
+          </h1>
+          <p className="text-[6px] font-label uppercase tracking-widest text-outline">
+            {customer.name} · saldo actual {currentPoints} pts
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="border border-outline-variant/10 bg-surface-container-highest p-1 text-outline transition-all hover:text-white active:scale-95"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      </div>
+
+      <div className="space-y-2">
+        <div className="grid grid-cols-3 gap-1.5">
+          {[
+            { value: 'ADD', label: 'Agregar' },
+            { value: 'REMOVE', label: 'Quitar' },
+            { value: 'SET', label: 'Fijar' },
+          ].map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setOperation(option.value as 'ADD' | 'REMOVE' | 'SET')}
+              className={cn(
+                'border px-2 py-2 text-[8px] font-black uppercase tracking-widest transition-all',
+                operation === option.value
+                  ? 'border-primary/30 bg-primary text-on-primary'
+                  : 'border-outline-variant/15 bg-surface-container-low text-outline hover:text-white',
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="space-y-0.5">
+          <label className="ml-1 text-[6px] font-bold uppercase tracking-widest text-outline">
+            {operation === 'SET' ? 'Nuevo saldo total' : 'Cantidad de puntos'}
+          </label>
+          <input
+            name="points"
+            type="number"
+            min="0"
+            step="1"
+            defaultValue={operation === 'SET' ? currentPoints : 0}
+            className="w-full border border-outline-variant/20 bg-surface-container-low p-1.5 text-[10px] font-bold text-on-surface focus:outline-none focus:ring-1 focus:ring-primary/30"
+          />
+        </div>
+
+        <div className="space-y-0.5">
+          <label className="ml-1 text-[6px] font-bold uppercase tracking-widest text-outline">
+            Motivo
+          </label>
+          <textarea
+            name="description"
+            rows={3}
+            placeholder="Ajuste manual de fidelización..."
+            className="w-full resize-none border border-outline-variant/20 bg-surface-container-low p-1.5 text-[9px] font-bold uppercase text-on-surface focus:outline-none focus:ring-1 focus:ring-primary/30"
+          />
+        </div>
+
+        <div className="flex gap-1.5 pt-1">
+          <button
+            type="submit"
+            disabled={isPending}
+            className="flex-1 bg-primary py-1.5 text-[9px] font-black uppercase tracking-widest text-on-primary shadow-lg shadow-primary/20 transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-50"
+          >
+            {isPending ? 'Guardando...' : 'Aplicar ajuste'}
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="bg-surface-container-highest px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-outline transition-all hover:text-white active:scale-[0.98]"
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </form>
+  );
+}
+
+function DeleteCustomerConfirm({
+  customer,
+  isPending,
+  onCancel,
+  onConfirm,
+}: {
+  customer: any;
+  isPending: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="flex flex-col p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <div>
+          <h1 className="mb-0 text-sm font-black leading-none tracking-tighter text-white font-headline uppercase">
+            Eliminar cliente
+          </h1>
+          <p className="text-[6px] font-label uppercase tracking-widest text-outline">
+            Esta acción eliminará fidelización y desvinculará su historial
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="border border-outline-variant/10 bg-surface-container-highest p-1 text-outline transition-all hover:text-white active:scale-95"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      </div>
+
+      <div className="border border-red-500/15 bg-red-500/5 p-3">
+        <p className="text-[9px] font-bold uppercase leading-relaxed text-on-surface">
+          Se eliminará completamente el cliente <span className="text-red-400">{customer.name}</span>.
+        </p>
+        <p className="mt-2 text-[8px] uppercase leading-relaxed text-outline">
+          Los pedidos anteriores se conservarán, pero quedarán desvinculados del cliente.
+        </p>
+      </div>
+
+      <div className="mt-3 flex gap-1.5">
+        <button
+          type="button"
+          onClick={onConfirm}
+          disabled={isPending}
+          className="flex-1 bg-red-600 py-1.5 text-[9px] font-black uppercase tracking-widest text-white transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-50"
+        >
+          {isPending ? 'Eliminando...' : 'Eliminar'}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="bg-surface-container-highest px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-outline transition-all hover:text-white active:scale-[0.98]"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function CustomerForm({ onCancel, onSuccess }: { onCancel: () => void; onSuccess: () => void }) {

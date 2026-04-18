@@ -10,8 +10,21 @@ const runtimeConfig = {
   socketUrl: readFlag('--fatboy-socket-url='),
 };
 
+try {
+  Object.assign(runtimeConfig, ipcRenderer.sendSync('fatboy:get-runtime-config-sync') || {});
+} catch {
+  // Fallback to launch flags when IPC sync is not available.
+}
+
+ipcRenderer.on('fatboy:server-config-changed', (_event, nextConfig) => {
+  Object.assign(runtimeConfig, nextConfig || {});
+});
+
 contextBridge.exposeInMainWorld('fatboyDesktop', {
   getRuntimeConfig: () => runtimeConfig,
+  getServerConfig: () => ipcRenderer.invoke('fatboy:get-server-config'),
+  testServerConfig: (payload) => ipcRenderer.invoke('fatboy:test-server-config', payload),
+  saveServerConfig: (payload) => ipcRenderer.invoke('fatboy:save-server-config', payload),
   isDesktop: () => true,
   getZoomFactor: () => webFrame.getZoomFactor(),
   setZoomFactor: (factor) => webFrame.setZoomFactor(factor),

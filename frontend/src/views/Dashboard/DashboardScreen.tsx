@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getOpenOrders, getUsers, getActiveShift } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { motion } from 'framer-motion';
+import appLogo from '../../assets/icono.png';
 
 export function DashboardScreen() {
   const { user } = useAuthStore();
@@ -121,7 +122,7 @@ export function DashboardScreen() {
             className="relative mb-1"
           >
             <img
-              src="/icono.png"
+              src={appLogo}
               alt="Fatboy POS"
               className="h-24 w-24 object-contain relative z-10"
             />

@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Table2,
+  Settings,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -47,7 +48,11 @@ type PendingTableItem = {
   quantity: number;
 };
 
-export function FloorPlanScreen() {
+interface FloorPlanScreenProps {
+  onManage?: () => void;
+}
+
+export function FloorPlanScreen({ onManage }: FloorPlanScreenProps) {
   const categoryRailRef = useRef<HTMLDivElement | null>(null);
   const role = useAuthStore((state) => state.user?.role ?? '');
   const userId = Number(useAuthStore((state) => state.user?.id ?? 0));
@@ -208,6 +213,7 @@ export function FloorPlanScreen() {
   const canCancelOrder = !!currentOrder?.id && Number(currentOrder.paidAmount ?? 0) <= 0;
   const canReleaseStuckTable = !!selectedTable && selectedTable.status !== 'AVAILABLE' && !currentOrder;
   const canCreateTableOrder = !!currentOrder || isWaiterUser || !!selectedWaiterId;
+  const isAdmin = role === 'ADMIN';
   const businessName = restaurantName?.trim() || 'Mi negocio';
 
   return (
@@ -232,6 +238,15 @@ export function FloorPlanScreen() {
                   {area.name}
                 </button>
               ))}
+              {isAdmin && onManage && (
+                <button
+                  onClick={onManage}
+                  className="flex items-center gap-1 border border-primary/20 bg-primary/5 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-[0.12em] text-primary hover:bg-primary/10 transition-all ml-1"
+                >
+                  <Settings className="w-2.5 h-2.5" />
+                  Gestionar Salón
+                </button>
+              )}
             </div>
           </div>
           <div className="flex flex-wrap gap-1 pb-0.5">

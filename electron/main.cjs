@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain, safeStorage } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, safeStorage, nativeImage } = require('electron');
 const { execFile } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -13,20 +13,21 @@ const {
 
 const execFileAsync = promisify(execFile);
 
-const DESKTOP_BACKEND_PORT = Number(process.env.FATBOY_BACKEND_PORT || 3000);
-const DESKTOP_BACKEND_HOST = process.env.FATBOY_BACKEND_HOST || '127.0.0.1';
-const DESKTOP_BACKEND_ORIGIN = `http://${DESKTOP_BACKEND_HOST}:${DESKTOP_BACKEND_PORT}`;
-const DESKTOP_API_BASE = `${DESKTOP_BACKEND_ORIGIN}/api`;
 const isDev = !app.isPackaged;
 const MAX_PRINT_QUEUE_ITEMS = 60;
+const DEFAULT_SERVER_PROTOCOL = process.env.FATBOY_BACKEND_PROTOCOL || 'http';
+const DEFAULT_SERVER_HOST = process.env.FATBOY_BACKEND_HOST || '127.0.0.1';
+const DEFAULT_SERVER_PORT = Number(process.env.FATBOY_BACKEND_PORT || 3000);
 
 let mainWindow = null;
+let serverConfigWindow = null;
 let desktopPrintSequence = 0;
 let isProcessingPrintQueue = false;
 let desktopSessionToken = null;
 let printPollingTimer = null;
 const desktopPrintQueue = [];
 const pendingPrintJobs = [];
+let desktopServerConfig = null;
 
 app.setName('Fatboy POS');
 
@@ -38,12 +39,50 @@ function getFrontendEntry() {
   return `file://${path.join(__dirname, '..', 'frontend', 'dist', 'index.html')}`;
 }
 
+function getFrontendEntryForSurface(searchParams = {}) {
+  const entry = getFrontendEntry();
+  const url = new URL(entry);
+
+  Object.entries(searchParams).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') {
+      return;
+    }
+
+    url.searchParams.set(key, String(value));
+  });
+
+  return url.toString();
+}
+
 function getWindowIcon() {
-  if (isDev) {
-    return path.join(__dirname, '..', 'frontend', 'public', 'favicon.svg');
+  const iconPath = isDev
+    ? path.join(__dirname, '..', 'frontend', 'public', 'icono.png')
+    : path.join(__dirname, '..', 'frontend', 'dist', 'icono.png');
+
+  return iconPath;
+}
+
+function getWindowIconImage() {
+  const iconPath = getWindowIcon();
+  const image = nativeImage.createFromPath(iconPath);
+
+  if (image.isEmpty()) {
+    return undefined;
   }
 
-  return path.join(__dirname, '..', 'frontend', 'dist', 'favicon.svg');
+  return image;
+}
+
+function getWindowOptions() {
+  if (isDev) {
+    return {
+      icon: getWindowIconImage() || getWindowIcon(),
+    };
+  }
+
+  return {
+    icon: getWindowIconImage() || getWindowIcon(),
+  };
 }
 
 function resolvePowerShellExecutable() {
@@ -181,6 +220,274 @@ function getAuthHeaders(token) {
   };
 }
 
+function getDefaultServerConfig() {
+  return {
+    protocol: DEFAULT_SERVER_PROTOCOL,
+    host: DEFAULT_SERVER_HOST,
+    port: DEFAULT_SERVER_PORT,
+  };
+}
+
+function getServerConfigPath() {
+  return path.join(app.getPath('userData'), 'server-config.json');
+}
+
+function isValidServerHost(host) {
+  if (!host || /\s/.test(host) || host.includes('/') || host.includes('?') || host.includes('#')) {
+    return false;
+  }
+
+  if (host === 'localhost') {
+    return true;
+  }
+
+  if (host.startsWith('[') && host.endsWith(']')) {
+    return /^[\[\]A-Fa-f0-9:.]+$/.test(host);
+  }
+
+  if (net.isIP(host) > 0) {
+    return true;
+  }
+
+  if (!/^[a-zA-Z0-9.-]+$/.test(host)) {
+    return false;
+  }
+
+  return host
+    .split('.')
+    .every((label) => label.length > 0 && !label.startsWith('-') && !label.endsWith('-'));
+}
+
+function normalizeServerConfig(input = {}) {
+  const rawHost =
+    input.host ||
+    input.hostname ||
+    input.ip ||
+    input.ipAddress ||
+    input.serverHost ||
+    '';
+  const rawProtocol =
+    input.protocol ||
+    input.scheme ||
+    input.serverProtocol ||
+    DEFAULT_SERVER_PROTOCOL;
+  const rawPort = input.port ?? input.serverPort ?? input.backendPort ?? '';
+
+  return {
+    protocol: String(rawProtocol || '').trim().toLowerCase(),
+    host: String(rawHost || '').trim(),
+    port: Number.parseInt(String(rawPort), 10),
+  };
+}
+
+function validateServerConfig(input = {}) {
+  const config = normalizeServerConfig(input);
+
+  if (!config.host) {
+    return { ok: false, code: 'HOST_REQUIRED', message: 'Debes capturar un host o IP.' };
+  }
+
+  if (!isValidServerHost(config.host)) {
+    return { ok: false, code: 'HOST_INVALID', message: 'El host o IP no tiene un formato válido.' };
+  }
+
+  if (!Number.isFinite(config.port)) {
+    return { ok: false, code: 'PORT_REQUIRED', message: 'Debes capturar un puerto numérico.' };
+  }
+
+  if (config.port < 1 || config.port > 65535) {
+    return { ok: false, code: 'PORT_RANGE', message: 'El puerto debe estar entre 1 y 65535.' };
+  }
+
+  if (!['http', 'https'].includes(config.protocol)) {
+    return { ok: false, code: 'PROTOCOL_INVALID', message: 'El protocolo debe ser http o https.' };
+  }
+
+  return { ok: true, config };
+}
+
+function buildServerOrigin(config) {
+  return `${config.protocol}://${config.host}:${config.port}`;
+}
+
+function getActiveServerConfig() {
+  return desktopServerConfig || getDefaultServerConfig();
+}
+
+function getDesktopBackendOrigin() {
+  return buildServerOrigin(getActiveServerConfig());
+}
+
+function getDesktopApiBase() {
+  return `${getDesktopBackendOrigin()}/api`;
+}
+
+function serializeServerConfig(config = getActiveServerConfig()) {
+  return {
+    protocol: config.protocol,
+    host: config.host,
+    port: config.port,
+    origin: buildServerOrigin(config),
+    apiBaseUrl: `${buildServerOrigin(config)}/api`,
+  };
+}
+
+function getRendererRuntimeConfig() {
+  const config = serializeServerConfig();
+
+  return {
+    apiBaseUrl: config.apiBaseUrl,
+    socketUrl: config.origin,
+    serverConfig: config,
+    hasSavedServerConfig: !!desktopServerConfig,
+  };
+}
+
+function loadServerConfigFromDisk() {
+  try {
+    const configPath = getServerConfigPath();
+
+    if (!fs.existsSync(configPath)) {
+      return null;
+    }
+
+    const parsed = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    const validation = validateServerConfig(parsed);
+    return validation.ok ? validation.config : null;
+  } catch (error) {
+    console.error('Error loading server config:', error);
+    return null;
+  }
+}
+
+function saveServerConfigToDisk(config) {
+  const configPath = getServerConfigPath();
+  fs.writeFileSync(
+    configPath,
+    JSON.stringify(
+      {
+        protocol: config.protocol,
+        host: config.host,
+        port: config.port,
+        updatedAt: new Date().toISOString(),
+      },
+      null,
+      2,
+    ),
+    'utf8',
+  );
+}
+
+function notifyRendererServerConfigChanged() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+
+  mainWindow.webContents.send('fatboy:server-config-changed', getRendererRuntimeConfig());
+}
+
+async function testServerConnection(input = {}, timeoutMs = 5000) {
+  const validation = validateServerConfig(input);
+
+  if (!validation.ok) {
+    return validation;
+  }
+
+  const config = validation.config;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const targetUrl = `${buildServerOrigin(config)}/api`;
+
+  try {
+    const response = await fetch(targetUrl, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json, text/plain, */*',
+      },
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        code: 'HTTP_ERROR',
+        message: `El backend respondió con HTTP ${response.status}.`,
+        status: response.status,
+        config,
+      };
+    }
+
+    return {
+      ok: true,
+      code: 'CONNECTION_OK',
+      message: 'Conexión exitosa con el backend.',
+      status: response.status,
+      config,
+    };
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      return {
+        ok: false,
+        code: 'TIMEOUT',
+        message: 'Tiempo de espera agotado al intentar conectar con el backend.',
+        config,
+      };
+    }
+
+    const causeCode = error?.cause?.code;
+    if (causeCode === 'ENOTFOUND') {
+      return {
+        ok: false,
+        code: 'HOST_UNREACHABLE',
+        message: 'Servidor no encontrado. Verifica el host o la IP.',
+        config,
+      };
+    }
+
+    if (causeCode === 'ECONNREFUSED') {
+      return {
+        ok: false,
+        code: 'CONNECTION_REFUSED',
+        message: 'El backend rechazó la conexión. Verifica puerto, firewall o servicio apagado.',
+        config,
+      };
+    }
+
+    return {
+      ok: false,
+      code: 'NETWORK_ERROR',
+      message: 'No se pudo establecer conexión con el backend. Verifica red, firewall o disponibilidad del servidor.',
+      details: error?.message,
+      config,
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function waitForServerConnection(input = {}, options = {}) {
+  const totalTimeoutMs = Number(options.totalTimeoutMs || 30000);
+  const attemptTimeoutMs = Number(options.attemptTimeoutMs || 5000);
+  const retryDelayMs = Number(options.retryDelayMs || 1200);
+  const startedAt = Date.now();
+  let lastResult = null;
+
+  while (Date.now() - startedAt < totalTimeoutMs) {
+    lastResult = await testServerConnection(input, attemptTimeoutMs);
+    if (lastResult?.ok) {
+      return lastResult;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+  }
+
+  return lastResult || {
+    ok: false,
+    code: 'TIMEOUT',
+    message: 'Tiempo de espera agotado al intentar conectar con el backend.',
+  };
+}
+
 async function fetchBackendJson(url, token, init = {}) {
   const response = await fetch(url, {
     ...init,
@@ -279,8 +586,8 @@ async function printOrderReceiptFromDesktop({
   copies = 1,
   openDrawer = false,
 }) {
-  const settings = await fetchBackendJson(`${DESKTOP_API_BASE}/settings`, token);
-  const order = await fetchBackendJson(`${DESKTOP_API_BASE}/orders/${orderId}`, token);
+  const settings = await fetchBackendJson(`${getDesktopApiBase()}/settings`, token);
+  const order = await fetchBackendJson(`${getDesktopApiBase()}/orders/${orderId}`, token);
   const routing = resolvePrintRouting(settings, {
     type,
     printerName,
@@ -362,7 +669,7 @@ async function openCashDrawerFromDesktop({
   token,
   printerName,
 }) {
-  const settings = await fetchBackendJson(`${DESKTOP_API_BASE}/settings`, token);
+  const settings = await fetchBackendJson(`${getDesktopApiBase()}/settings`, token);
   const resolvedPrinterName = printerName || settings.receiptPrinterName;
 
   if (!resolvedPrinterName) {
@@ -592,7 +899,7 @@ async function processRemotePrintJob(job) {
   }
 
   const claimed = await sendBackendJson(
-    `${DESKTOP_API_BASE}/print-jobs/${job.printJobId}/claim`,
+    `${getDesktopApiBase()}/print-jobs/${job.printJobId}/claim`,
     desktopSessionToken,
     'POST',
     {},
@@ -609,14 +916,14 @@ async function processRemotePrintJob(job) {
   }
 
   const [jobDetail, settings] = await Promise.all([
-    fetchBackendJson(`${DESKTOP_API_BASE}/print-jobs/${job.printJobId}`, desktopSessionToken),
-    fetchBackendJson(`${DESKTOP_API_BASE}/settings`, desktopSessionToken),
+    fetchBackendJson(`${getDesktopApiBase()}/print-jobs/${job.printJobId}`, desktopSessionToken),
+    fetchBackendJson(`${getDesktopApiBase()}/settings`, desktopSessionToken),
   ]);
 
   try {
     const result = await printBackendJob(jobDetail, settings);
     await sendBackendJson(
-      `${DESKTOP_API_BASE}/print-jobs/${job.printJobId}/status`,
+      `${getDesktopApiBase()}/print-jobs/${job.printJobId}/status`,
       desktopSessionToken,
       'PATCH',
       {
@@ -631,7 +938,7 @@ async function processRemotePrintJob(job) {
     return result;
   } catch (error) {
     await sendBackendJson(
-      `${DESKTOP_API_BASE}/print-jobs/${job.printJobId}/status`,
+      `${getDesktopApiBase()}/print-jobs/${job.printJobId}/status`,
       desktopSessionToken,
       'PATCH',
       {
@@ -652,7 +959,7 @@ async function syncPendingPrintJobs() {
   }
 
   const jobs = await fetchBackendJson(
-    `${DESKTOP_API_BASE}/print-jobs?status=pending`,
+    `${getDesktopApiBase()}/print-jobs?status=pending`,
     desktopSessionToken,
   );
 
@@ -733,7 +1040,7 @@ async function requestLegacyOrderPrint(payload = {}) {
   }
 
   const response = await sendBackendJson(
-    `${DESKTOP_API_BASE}/printing/orders/${orderId}/receipt`,
+    `${getDesktopApiBase()}/printing/orders/${orderId}/receipt`,
     token,
     'POST',
     body,
@@ -752,7 +1059,7 @@ async function requestDocumentPrint(payload = {}) {
   }
 
   const response = await sendBackendJson(
-    `${DESKTOP_API_BASE}/print-jobs`,
+    `${getDesktopApiBase()}/print-jobs`,
     token,
     'POST',
     body,
@@ -771,7 +1078,7 @@ async function reprintDocumentFromDesktop(payload = {}) {
   }
 
   const response = await sendBackendJson(
-    `${DESKTOP_API_BASE}/print-jobs/${jobId}/reprint`,
+    `${getDesktopApiBase()}/print-jobs/${jobId}/reprint`,
     token,
     'POST',
     {},
@@ -789,12 +1096,12 @@ async function getPrintJobStatusFromDesktop(payload = {}) {
     throw new Error('Faltan datos para consultar el estado del trabajo.');
   }
 
-  return fetchBackendJson(`${DESKTOP_API_BASE}/print-jobs/${jobId}/status`, token);
+  return fetchBackendJson(`${getDesktopApiBase()}/print-jobs/${jobId}/status`, token);
 }
 
 async function testPrintFromDesktop(payload = {}) {
   const settings = payload.token
-    ? await fetchBackendJson(`${DESKTOP_API_BASE}/settings`, payload.token)
+    ? await fetchBackendJson(`${getDesktopApiBase()}/settings`, payload.token)
     : {};
   const routing = resolveDocumentRouting(settings, {
     documentType: payload.documentType || 'FAST_FOOD_RECEIPT',
@@ -860,14 +1167,14 @@ function waitForPort(port, host = '127.0.0.1', timeoutMs = 30000) {
 }
 
 async function startBackendForDesktop() {
-  if (isDev) {
+  if (!desktopServerConfig) {
     return;
   }
 
-  await waitForPort(DESKTOP_BACKEND_PORT, DESKTOP_BACKEND_HOST, 6000).catch(() => {
+  await waitForPort(desktopServerConfig.port, desktopServerConfig.host, 6000).catch(() => {
     throw new Error(
-      `No se encontro el servicio local del backend en ${DESKTOP_BACKEND_HOST}:${DESKTOP_BACKEND_PORT}. ` +
-      'Inicia o verifica el servicio de Windows "FatboyPOSBackend" antes de abrir la aplicacion.',
+      `No se pudo conectar con el backend configurado en ${desktopServerConfig.host}:${desktopServerConfig.port}. ` +
+      'Verifica host, puerto, firewall o disponibilidad del servidor.',
     );
   });
 }
@@ -880,7 +1187,7 @@ function createWindow() {
     minWidth: 1200,
     minHeight: 760,
     show: false,
-    icon: getWindowIcon(),
+    ...getWindowOptions(),
     backgroundColor: '#0f0f10',
     autoHideMenuBar: true,
     webPreferences: {
@@ -888,10 +1195,6 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
-      additionalArguments: [
-        `--fatboy-api-base-url=${DESKTOP_BACKEND_ORIGIN}/api`,
-        `--fatboy-socket-url=${DESKTOP_BACKEND_ORIGIN}`,
-      ],
     },
   });
 
@@ -903,10 +1206,102 @@ function createWindow() {
     mainWindow = null;
   });
 
-  mainWindow.loadURL(getFrontendEntry());
+  mainWindow.loadURL(getFrontendEntryForSurface());
+}
+
+function createServerConfigWindow({ reason, mode = 'setup', errorMessage } = {}) {
+  if (serverConfigWindow && !serverConfigWindow.isDestroyed()) {
+    serverConfigWindow.focus();
+    return serverConfigWindow;
+  }
+
+  serverConfigWindow = new BrowserWindow({
+    title: 'Configuración del servidor',
+    width: 560,
+    height: 640,
+    minWidth: 540,
+    minHeight: 620,
+    resizable: true,
+    maximizable: false,
+    fullscreenable: false,
+    autoHideMenuBar: true,
+    backgroundColor: '#0b0b0c',
+    ...getWindowOptions(),
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+    },
+  });
+
+  serverConfigWindow.on('closed', () => {
+    serverConfigWindow = null;
+
+    if (!mainWindow && !desktopServerConfig) {
+      app.quit();
+    }
+  });
+
+  serverConfigWindow.loadURL(
+    getFrontendEntryForSurface({
+      surface: 'server-config',
+      mode,
+      reason,
+      error: errorMessage,
+    }),
+  );
+
+  return serverConfigWindow;
 }
 
 function registerDesktopIpc() {
+  ipcMain.on('fatboy:get-runtime-config-sync', (event) => {
+    event.returnValue = getRendererRuntimeConfig();
+  });
+
+  ipcMain.handle('fatboy:get-runtime-config', async () => getRendererRuntimeConfig());
+  ipcMain.handle('fatboy:get-server-config', async () => ({
+    hasSavedConfig: !!desktopServerConfig,
+    config: serializeServerConfig(),
+    defaults: serializeServerConfig(getDefaultServerConfig()),
+  }));
+  ipcMain.handle('fatboy:test-server-config', async (_event, payload = {}) => testServerConnection(payload));
+  ipcMain.handle('fatboy:save-server-config', async (_event, payload = {}) => {
+    const result = await testServerConnection(payload);
+
+    if (!result.ok) {
+      throw new Error(result.message);
+    }
+
+    desktopServerConfig = result.config;
+    saveServerConfigToDisk(desktopServerConfig);
+    notifyRendererServerConfigChanged();
+
+    const shouldLaunchMainWindow = !mainWindow || mainWindow.isDestroyed();
+
+    if (serverConfigWindow && !serverConfigWindow.isDestroyed()) {
+      const pendingWindow = serverConfigWindow;
+      setTimeout(() => {
+        if (pendingWindow && !pendingWindow.isDestroyed()) {
+          pendingWindow.close();
+        }
+
+        if (shouldLaunchMainWindow && (!mainWindow || mainWindow.isDestroyed())) {
+          createWindow();
+        }
+      }, 50);
+    } else if (shouldLaunchMainWindow) {
+      createWindow();
+    }
+
+    return {
+      ok: true,
+      message: 'Configuración guardada correctamente.',
+      config: serializeServerConfig(desktopServerConfig),
+    };
+  });
+
   ipcMain.handle('fatboy:set-session-token', async (_event, payload = {}) => {
     setDesktopSessionToken(payload.token);
     return { ok: true };
@@ -984,7 +1379,28 @@ app.on('before-quit', () => {
 app.whenReady().then(async () => {
   try {
     registerDesktopIpc();
-    await startBackendForDesktop();
+
+    desktopServerConfig = loadServerConfigFromDisk();
+
+    if (!desktopServerConfig) {
+      createServerConfigWindow({ reason: 'missing-config', mode: 'setup' });
+      return;
+    }
+
+    const connectionCheck = await waitForServerConnection(desktopServerConfig, {
+      totalTimeoutMs: 30000,
+      attemptTimeoutMs: 5000,
+      retryDelayMs: 1500,
+    });
+    if (!connectionCheck.ok) {
+      createServerConfigWindow({
+        reason: 'backend-unreachable',
+        mode: 'setup',
+        errorMessage: connectionCheck.message,
+      });
+      return;
+    }
+
     createWindow();
   } catch (error) {
     dialog.showErrorBox(
@@ -1003,7 +1419,27 @@ app.on('window-all-closed', () => {
 
 app.on('activate', async () => {
   if (BrowserWindow.getAllWindows().length === 0) {
-    await startBackendForDesktop();
+    desktopServerConfig = loadServerConfigFromDisk();
+
+    if (!desktopServerConfig) {
+      createServerConfigWindow({ reason: 'missing-config', mode: 'setup' });
+      return;
+    }
+
+    const connectionCheck = await waitForServerConnection(desktopServerConfig, {
+      totalTimeoutMs: 30000,
+      attemptTimeoutMs: 5000,
+      retryDelayMs: 1500,
+    });
+    if (!connectionCheck.ok) {
+      createServerConfigWindow({
+        reason: 'backend-unreachable',
+        mode: 'setup',
+        errorMessage: connectionCheck.message,
+      });
+      return;
+    }
+
     createWindow();
   }
 });

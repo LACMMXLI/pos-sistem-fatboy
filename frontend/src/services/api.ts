@@ -296,7 +296,6 @@ export interface PrintJobResponse {
 }
 
 const api = axios.create({
-  baseURL: getApiBaseUrl(),
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
@@ -305,6 +304,7 @@ const api = axios.create({
 
 // Request interceptor to add the auth token
 api.interceptors.request.use(async (config) => {
+  config.baseURL = getApiBaseUrl();
   let token = localStorage.getItem('token');
   
   if (isDesktopRuntime()) {
@@ -414,9 +414,52 @@ export const getAreas = async () => {
   return data;
 };
 
+export const createArea = async (areaData: { name: string; isActive?: boolean }) => {
+  const { data } = await api.post('/areas', areaData);
+  return data;
+};
+
+export const updateArea = async (id: number | string, areaData: { name?: string; isActive?: boolean }) => {
+  const { data } = await api.patch(`/areas/${id}`, areaData);
+  return data;
+};
+
+export const deleteArea = async (id: number | string) => {
+  const { data } = await api.delete(`/areas/${id}`);
+  return data;
+};
+
 export const getTables = async (areaId?: string) => {
   const params = areaId ? { areaId } : {};
   const { data } = await api.get('/tables', { params });
+  return data;
+};
+
+export const createTable = async (tableData: {
+  name: string;
+  areaId: number;
+  status?: string;
+  isActive?: boolean;
+}) => {
+  const { data } = await api.post('/tables', tableData);
+  return data;
+};
+
+export const updateTable = async (
+  id: number | string,
+  tableData: {
+    name?: string;
+    areaId?: number;
+    status?: string;
+    isActive?: boolean;
+  },
+) => {
+  const { data } = await api.patch(`/tables/${id}`, tableData);
+  return data;
+};
+
+export const deleteTable = async (id: number | string) => {
+  const { data } = await api.delete(`/tables/${id}`);
   return data;
 };
 
@@ -730,6 +773,9 @@ export const previewPrintTemplate = async (payload: {
   orderId?: number;
   shiftId?: number;
   cashMovementId?: number;
+  sections?: any[];
+  fixedTexts?: any;
+  metadata?: any;
 }) => {
   const { data } = await api.post('/print-templates/preview', payload);
   return data;
@@ -1007,8 +1053,23 @@ export const updateCustomer = async (id: string | number, customerData: any) => 
   return data;
 };
 
+export const deleteCustomer = async (id: string | number) => {
+  const { data } = await api.delete(`/customers/${id}`);
+  return data;
+};
+
 export const getCustomerLoyalty = async (id: string | number) => {
   const { data } = await api.get(`/customers/${id}/loyalty`);
+  return data;
+};
+
+export const adjustCustomerLoyaltyPoints = async (payload: {
+  customerId: number;
+  operation: 'ADD' | 'REMOVE' | 'SET';
+  points: number;
+  description?: string;
+}) => {
+  const { data } = await api.post('/loyalty/adjust', payload);
   return data;
 };
 

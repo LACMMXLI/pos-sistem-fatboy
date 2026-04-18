@@ -1,56 +1,154 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Eye, Loader2, Printer, RefreshCw, Save, Copy, History, Sparkles } from 'lucide-react';
+import { Loader2, Printer, RefreshCw, Save, Copy, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import ActionButton from '../../components/ui/ActionButton';
+import Switch from '../../components/ui/Switch';
 import {
   activatePrintTemplate,
   createPrintTemplate,
   duplicatePrintTemplate,
-  getPrintJobs,
-  getPrintTemplateTypes,
   getPrintTemplates,
   previewPrintTemplate,
-  reprintPrintJob,
   restoreDefaultPrintTemplate,
   testPrintDocument,
   updatePrintTemplate,
-  type PrintJobResponse,
   type PrintTemplateResponse,
   type PrintTemplateSectionResponse,
 } from '../../services/api';
 import { cn } from '../../lib/utils';
 
 const fieldClass =
-  'w-full bg-surface-container-highest border border-outline-variant/20 px-2 py-1.5 text-[10px] font-bold text-on-surface outline-none focus:border-primary transition-colors hover:border-outline-variant/40';
+  'admin-input';
 
 const fieldClassCompact =
-  'w-full bg-surface-container-highest border border-outline-variant/10 px-1.5 py-1 text-[9px] font-bold text-on-surface outline-none focus:border-primary transition-colors';
+  'w-full rounded-[0.75rem] border border-white/8 bg-black/18 px-2 py-1.5 text-[10px] font-semibold text-on-surface outline-none transition-all focus:border-primary/40';
+
+const SAMPLE_SECTION_CONTENT: Record<string, string> = {
+  business_header: 'FATBOY POS DINER',
+  branch_info: 'Sucursal Centro · Tel. (664) 123-4567',
+  order_info: 'COMANDA #A-1024 · MESA 12 · 07:48 PM',
+  cashier_info: 'Cajero: Admin · Mesero: Carlos',
+  customer_info: 'Cliente: Mostrador',
+  items: '2x TACO ASADA        120.00\n1x REFRESCO            35.00',
+  item_modifiers: '  + Sin cebolla\n  + Salsa aparte',
+  subtotal: 'Subtotal             155.00',
+  discount: 'Descuento             -0.00',
+  tax: 'IVA                   24.80',
+  total: 'TOTAL                179.80',
+  payment_detail: 'Pago: Efectivo        200.00',
+  received_amount: 'Recibido             200.00',
+  change_amount: 'Cambio                20.20',
+  footer: 'Gracias por su compra',
+  notes: 'Observaciones: llevar a cocina',
+  kitchen_header: 'COMANDA COCINA',
+  kitchen_items: '1x BURGER DOBLE\n1x PAPAS GRANDES',
+  kitchen_notes: 'SIN TOMATE · EXTRA QUESO',
+  shift_header: 'CORTE DE TURNO',
+  shift_totals: 'Ventas totales      12,480.00',
+  cash_movement_header: 'MOVIMIENTO DE CAJA',
+  cash_movement_detail: 'Retiro de efectivo    500.00',
+};
+
+const KITCHEN_KEYWORDS = ['KITCHEN', 'COMANDA', 'PREP', 'PRODUCTION'];
+
+const FONT_SIZE_CLASS: Record<NonNullable<PrintTemplateSectionResponse['fontSize']>, string> = {
+  small: 'text-[9px] leading-[1.2]',
+  normal: 'text-[11px] leading-[1.35]',
+  large: 'text-[14px] leading-[1.35]',
+  xlarge: 'text-[18px] leading-[1.25]',
+};
+
+const ALIGN_CLASS: Record<NonNullable<PrintTemplateSectionResponse['alignment']>, string> = {
+  left: 'text-left items-start',
+  center: 'text-center items-center',
+  right: 'text-right items-end',
+};
+
+function getSampleLines(section: PrintTemplateSectionResponse) {
+  const key = section.key.toLowerCase();
+  const rawBlock =
+    SAMPLE_SECTION_CONTENT[key] ??
+    section.customLabel ??
+    key.replaceAll('_', ' ').toUpperCase();
+
+  return rawBlock.split('\n');
+}
+
+function isKitchenDocument(documentType: string) {
+  return KITCHEN_KEYWORDS.some((keyword) => documentType.toUpperCase().includes(keyword));
+}
+
+function getKitchenSampleLines(section: PrintTemplateSectionResponse) {
+  const key = section.key.toLowerCase();
+
+  if (key.includes('header')) {
+    return ['MESA 12', 'ORDEN #A-1024'];
+  }
+
+  if (key.includes('branch')) {
+    return ['MESA: 12'];
+  }
+
+  if (key.includes('order')) {
+    return ['MESA: 12', 'HORA: 07:48 PM'];
+  }
+
+  if (key.includes('cashier') || key.includes('waiter')) {
+    return ['CAPTURA: ANA', 'IMPRIMIO: CAJA 1'];
+  }
+
+  if (key.includes('customer')) {
+    return [];
+  }
+
+  if (key === 'items' || key.includes('kitchen_items') || key.includes('product')) {
+    return [
+      '2X TACO ASADA',
+      '  + SIN CEBOLLA',
+      '  + SALSA APARTE',
+      '1X QUESADILLA HARINA',
+      '  + EXTRA QUESO',
+      '1X REFRESCO',
+    ];
+  }
+
+  if (key.includes('modifier')) {
+    return [];
+  }
+
+  if (key.includes('note')) {
+    return [];
+  }
+
+  if (key.includes('footer')) {
+    return ['CAPTURA: ANA', 'IMPRIMIO: CAJA 1'];
+  }
+
+  if (
+    key.includes('subtotal') ||
+    key.includes('discount') ||
+    key.includes('tax') ||
+    key.includes('total') ||
+    key.includes('payment') ||
+    key.includes('received') ||
+    key.includes('change')
+  ) {
+    return [];
+  }
+
+  return getSampleLines(section);
+}
 
 export function PrintingCenterScreen() {
   const queryClient = useQueryClient();
-  const [documentType, setDocumentType] = useState('FAST_FOOD_RECEIPT');
-  const [paperWidth, setPaperWidth] = useState<'58' | '80'>('80');
+  const paperWidth: '80' = '80';
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
-  const [orderIdPreview, setOrderIdPreview] = useState('');
-  const [shiftIdPreview, setShiftIdPreview] = useState('');
-  const [cashMovementIdPreview, setCashMovementIdPreview] = useState('');
   const [draft, setDraft] = useState<PrintTemplateResponse | null>(null);
 
-  const { data: templateTypes = [] } = useQuery({
-    queryKey: ['print-template-types'],
-    queryFn: getPrintTemplateTypes,
-  });
-
   const { data: templates = [], isLoading: loadingTemplates } = useQuery<PrintTemplateResponse[]>({
-    queryKey: ['print-templates', documentType, paperWidth],
-    queryFn: () => getPrintTemplates({ documentType, paperWidth }),
-  });
-
-  const { data: jobs = [], isLoading: loadingJobs } = useQuery<PrintJobResponse[]>({
-    queryKey: ['print-jobs-admin'],
-    queryFn: () => getPrintJobs(),
-    refetchInterval: 4000,
+    queryKey: ['print-templates', paperWidth],
+    queryFn: () => getPrintTemplates({ paperWidth }),
   });
 
   useEffect(() => {
@@ -86,19 +184,25 @@ export function PrintingCenterScreen() {
     () => templates.find((template) => template.id === selectedTemplateId) ?? null,
     [selectedTemplateId, templates],
   );
+  const currentDocumentType =
+    draft?.documentType ??
+    selectedTemplate?.documentType ??
+    templates[0]?.documentType ??
+    'FAST_FOOD_RECEIPT';
 
   const previewQuery = useQuery({
-    queryKey: ['print-preview', draft?.id, documentType, paperWidth, orderIdPreview, shiftIdPreview, cashMovementIdPreview],
+    queryKey: ['print-preview', draft?.id, currentDocumentType, paperWidth, JSON.stringify(draft?.sections), JSON.stringify(draft?.fixedTexts), JSON.stringify(draft?.metadata)],
     queryFn: () =>
       previewPrintTemplate({
-        documentType,
+        documentType: currentDocumentType,
         paperWidth,
         templateId: draft?.id,
-        orderId: orderIdPreview ? Number(orderIdPreview) : undefined,
-        shiftId: shiftIdPreview ? Number(shiftIdPreview) : undefined,
-        cashMovementId: cashMovementIdPreview ? Number(cashMovementIdPreview) : undefined,
+        sections: draft?.sections,
+        fixedTexts: draft?.fixedTexts,
+        metadata: draft?.metadata,
       }),
     enabled: !!draft,
+    staleTime: 5000,
   });
 
   const saveTemplate = useMutation({
@@ -119,7 +223,7 @@ export function PrintingCenterScreen() {
 
       return createPrintTemplate({
         ...payload,
-        documentType,
+        documentType: currentDocumentType,
         paperWidth,
       });
     },
@@ -150,7 +254,7 @@ export function PrintingCenterScreen() {
   });
 
   const restoreTemplate = useMutation({
-    mutationFn: () => restoreDefaultPrintTemplate({ documentType, paperWidth }),
+    mutationFn: () => restoreDefaultPrintTemplate({ documentType: currentDocumentType, paperWidth }),
     onSuccess: () => {
       toast.success('Plantilla por defecto restaurada');
       queryClient.invalidateQueries({ queryKey: ['print-templates'] });
@@ -161,21 +265,12 @@ export function PrintingCenterScreen() {
   const printTest = useMutation({
     mutationFn: () =>
       testPrintDocument({
-        documentType,
+        documentType: currentDocumentType,
         paperWidth,
-        message: `Prueba ${documentType} ${paperWidth}mm`,
+        message: `Prueba ${currentDocumentType} ${paperWidth}mm`,
       }),
     onSuccess: () => toast.success('Prueba de impresión enviada'),
     onError: (error: any) => toast.error(error?.message || 'No se pudo imprimir la prueba'),
-  });
-
-  const reprintJob = useMutation({
-    mutationFn: (jobId: string) => reprintPrintJob(jobId),
-    onSuccess: () => {
-      toast.success('Reimpresión solicitada');
-      queryClient.invalidateQueries({ queryKey: ['print-jobs-admin'] });
-    },
-    onError: (error: any) => toast.error(error?.response?.data?.message || error?.message || 'No se pudo reimprimir'),
   });
 
   const updateSection = (
@@ -194,53 +289,42 @@ export function PrintingCenterScreen() {
   };
 
   const orderedSections = [...(draft?.sections ?? [])].sort((a, b) => a.order - b.order);
-  const filteredJobs = jobs.slice(0, 24);
-
+  const visualPreviewSections = useMemo(
+    () => orderedSections.filter((section) => section.enabled),
+    [orderedSections],
+  );
+  const kitchenPreview = isKitchenDocument(currentDocumentType);
   return (
-    <div className="h-full p-1 bg-surface-container-lowest">
-      <div className="grid h-full grid-cols-[280px_1fr_380px] gap-1 overflow-hidden">
-        <div className="min-h-0 overflow-hidden border border-outline-variant/10 bg-surface-container-low shadow-xl">
-          <div className="border-b border-outline-variant/10 bg-surface-container-lowest px-3 py-2">
-            <p className="text-[8px] font-black uppercase tracking-[0.16em] text-on-surface">Plantillas</p>
-            <p className="mt-1 text-[7px] font-bold uppercase tracking-[0.12em] text-outline">Versiones activas por documento y ancho</p>
+    <div className="admin-shell h-full p-4">
+      <div className="grid h-full grid-cols-[minmax(170px,210px)_minmax(0,1fr)_minmax(280px,340px)] gap-3 overflow-hidden">
+        <div className="admin-panel min-h-0 overflow-hidden">
+          <div className="admin-section-header">
+            <div>
+              <p className="admin-eyebrow">Impresión</p>
+              <p className="admin-title">Plantillas</p>
+            </div>
           </div>
-          <div className="space-y-2 p-3">
-            <Field label="Documento">
-              <select value={documentType} onChange={(e) => setDocumentType(e.target.value)} className={fieldClass}>
-                {templateTypes.map((entry: any) => (
-                  <option key={entry.documentType} value={entry.documentType}>
-                    {entry.documentType}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Papel">
-              <select value={paperWidth} onChange={(e) => setPaperWidth(e.target.value as '58' | '80')} className={fieldClass}>
-                <option value="80">80 mm</option>
-                <option value="58">58 mm</option>
-              </select>
-            </Field>
-          </div>
-          <div className="max-h-[calc(100%-120px)] overflow-y-auto custom-scrollbar px-2 pb-3">
+          <div className="max-h-[calc(100%-72px)] overflow-y-auto custom-scrollbar px-3 py-3">
             {loadingTemplates ? (
-              <div className="px-3 py-6 text-center text-[8px] font-bold uppercase tracking-[0.12em] text-outline">Cargando plantillas...</div>
+              <div className="px-3 py-8 text-center text-[11px] font-bold uppercase tracking-[0.12em] text-outline">Cargando plantillas...</div>
             ) : templates.length === 0 ? (
-              <div className="px-3 py-6 text-center text-[8px] font-bold uppercase tracking-[0.12em] text-outline">No hay plantillas para este filtro.</div>
+              <div className="px-3 py-8 text-center text-[11px] font-bold uppercase tracking-[0.12em] text-outline">No hay plantillas para este filtro.</div>
             ) : (
               templates.map((template) => (
                 <button
                   key={template.id}
                   onClick={() => setSelectedTemplateId(template.id)}
                   className={cn(
-                    'mb-2 w-full border px-3 py-2 text-left transition-colors',
+                    'mb-2 w-full rounded-[0.95rem] border px-3 py-3 text-left transition-all',
                     selectedTemplateId === template.id
-                      ? 'border-primary/40 bg-primary/10'
-                      : 'border-outline-variant/10 bg-surface-container-high hover:border-primary/20',
+                      ? 'border-primary/30 bg-primary/10 shadow-[0_16px_32px_rgba(255,215,0,0.08)]'
+                      : 'border-white/8 bg-white/[0.035] hover:border-primary/18 hover:bg-white/[0.05]',
                   )}
                 >
-                  <p className="text-[8px] font-black uppercase tracking-[0.14em] text-on-surface">{template.name}</p>
-                  <p className="mt-1 text-[7px] font-bold uppercase tracking-[0.12em] text-outline">
-                    v{template.version} · {template.isActive ? 'ACTIVA' : 'INACTIVA'} · {template.isDefault ? 'DEFAULT' : 'CUSTOM'}
+                  <p className="text-[9px] font-black uppercase tracking-[0.12em] text-primary">{template.documentType}</p>
+                  <p className="mt-1 text-[11px] font-bold text-on-surface">{template.name}</p>
+                  <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.1em] text-outline">
+                    v{template.version} · {template.isActive ? 'activa' : 'inactiva'} · 80mm
                   </p>
                 </button>
               ))
@@ -248,16 +332,28 @@ export function PrintingCenterScreen() {
           </div>
         </div>
 
-        <div className="min-h-0 overflow-hidden border border-outline-variant/10 bg-surface-container-low shadow-xl">
-          <div className="flex items-center justify-between border-b border-outline-variant/10 bg-surface-container-lowest px-3 py-2">
+        <div className="admin-panel min-h-0 overflow-hidden">
+          <div className="flex items-center justify-between border-b border-white/8 px-4 py-3">
             <div>
-              <p className="text-[8px] font-black uppercase tracking-[0.16em] text-on-surface">Editor por bloques</p>
-              <p className="mt-1 text-[7px] font-bold uppercase tracking-[0.12em] text-outline">Sin edición cruda ESC/POS</p>
+              <p className="admin-eyebrow">Editor</p>
+              <p className="admin-title !mt-0 text-[0.9rem]">{draft?.name || selectedTemplate?.name || 'Plantilla'}</p>
             </div>
-            <div className="flex gap-1">
+            <div className="flex flex-wrap gap-1 shrink-0">
               <ActionButton variant="secondary" size="sm" onClick={() => queryClient.invalidateQueries({ queryKey: ['print-preview'] })}>
                 <RefreshCw className="w-3 h-3" />
                 Preview
+              </ActionButton>
+              <ActionButton variant="secondary" size="sm" onClick={() => draft && duplicateTemplate.mutate(draft.id)} disabled={!draft?.id || duplicateTemplate.isPending}>
+                <Copy className="w-3 h-3" />
+                Duplicar
+              </ActionButton>
+              <ActionButton variant="secondary" size="sm" onClick={() => draft && activateTemplate.mutate(draft.id)} disabled={!draft?.id || activateTemplate.isPending || draft?.isActive}>
+                <Sparkles className="w-3 h-3" />
+                Activar
+              </ActionButton>
+              <ActionButton variant="secondary" size="sm" onClick={() => restoreTemplate.mutate()} disabled={restoreTemplate.isPending || !draft}>
+                <RefreshCw className="w-3 h-3" />
+                Restaurar
               </ActionButton>
               <ActionButton variant="primary" size="sm" onClick={() => saveTemplate.mutate()} disabled={!draft || saveTemplate.isPending}>
                 {saveTemplate.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
@@ -266,184 +362,131 @@ export function PrintingCenterScreen() {
             </div>
           </div>
           {draft ? (
-            <div className="grid h-[calc(100%-48px)] grid-cols-[220px_minmax(0,1fr)]">
-              <div className="border-r border-outline-variant/10 bg-surface-container-high p-3">
-                <Field label="Nombre">
-                  <input className={fieldClass} value={draft.name} onChange={(e) => setDraft((current) => current ? { ...current, name: e.target.value } : current)} />
-                </Field>
-                <div className="mt-3 space-y-2">
-                  <ActionButton variant="secondary" size="sm" fullWidth onClick={() => duplicateTemplate.mutate(draft.id)} disabled={duplicateTemplate.isPending}>
-                    <Copy className="w-3 h-3" />
-                    Duplicar
-                  </ActionButton>
-                  <ActionButton variant="secondary" size="sm" fullWidth onClick={() => activateTemplate.mutate(draft.id)} disabled={activateTemplate.isPending || draft.isActive}>
-                    <Sparkles className="w-3 h-3" />
-                    Activar
-                  </ActionButton>
-                  <ActionButton variant="secondary" size="sm" fullWidth onClick={() => restoreTemplate.mutate()} disabled={restoreTemplate.isPending}>
-                    <RefreshCw className="w-3 h-3" />
-                    Restaurar default
-                  </ActionButton>
+            <div className="h-[calc(100%-76px)] min-h-0 overflow-auto p-2 custom-scrollbar">
+              <div className="min-w-[520px]">
+                <div className="mb-2 grid grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)_56px_84px_84px_56px_56px] gap-1.5 px-1 text-[8px] font-black uppercase tracking-[0.14em] text-outline">
+                  <span>Bloque</span>
+                  <span>Etiqueta</span>
+                  <span className="text-center">Orden</span>
+                  <span>Alineación</span>
+                  <span>Tamaño</span>
+                  <span className="text-center">On</span>
+                  <span className="text-center">Bold</span>
                 </div>
-                <div className="mt-4 border border-outline-variant/10 bg-surface-container-lowest p-2">
-                  <p className="text-[7px] font-black uppercase tracking-[0.14em] text-outline">Advertencias</p>
-                  {(draft.warnings?.length ?? 0) > 0 ? (
-                    draft.warnings?.map((warning) => (
-                      <p key={warning} className="mt-1 text-[8px] font-bold uppercase tracking-[0.08em] text-amber-200">{warning}</p>
-                    ))
-                  ) : (
-                    <p className="mt-1 text-[8px] font-bold uppercase tracking-[0.08em] text-outline">Sin advertencias registradas.</p>
-                  )}
-                </div>
-              </div>
 
-              <div className="min-h-0 overflow-hidden p-0">
-                <table className="w-full text-left border-collapse border-spacing-0">
-                  <thead className="sticky top-0 bg-surface-container-lowest z-10 shadow-sm">
-                    <tr>
-                      <th className="p-2 text-[7px] font-black uppercase tracking-[0.12em] text-outline border-b border-outline-variant/10">Bloque</th>
-                      <th className="p-2 text-[7px] font-black uppercase tracking-[0.12em] text-outline border-b border-outline-variant/10">Etiqueta</th>
-                      <th className="p-2 text-[7px] font-black uppercase tracking-[0.12em] text-outline border-b border-outline-variant/10 w-16 text-center">Orden</th>
-                      <th className="p-2 text-[7px] font-black uppercase tracking-[0.12em] text-outline border-b border-outline-variant/10 w-24">Ali</th>
-                      <th className="p-2 text-[7px] font-black uppercase tracking-[0.12em] text-outline border-b border-outline-variant/10 w-24">Tam</th>
-                      <th className="p-2 text-[7px] font-black uppercase tracking-[0.12em] text-outline border-b border-outline-variant/10 w-10 text-center">On</th>
-                      <th className="p-2 text-[7px] font-black uppercase tracking-[0.12em] text-outline border-b border-outline-variant/10 w-10 text-center">B</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-outline-variant/5">
-                    {orderedSections.map((section) => (
-                      <tr key={section.key} className={cn("hover:bg-surface-container-highest/50 transition-colors", !section.enabled && "opacity-40 grayscale-[0.5]")}>
-                        <td className="p-2 text-[8px] font-black uppercase text-on-surface/50 whitespace-nowrap">{section.key}</td>
-                        <td className="p-2">
-                          <input
-                            className={fieldClassCompact}
-                            value={section.customLabel ?? ''}
-                            placeholder={section.key}
-                            onChange={(e) => updateSection(section.key, { customLabel: e.target.value })}
-                          />
-                        </td>
-                        <td className="p-2">
-                          <input className={cn(fieldClassCompact, "text-center")} type="number" value={section.order} onChange={(e) => updateSection(section.key, { order: Number(e.target.value) })} />
-                        </td>
-                        <td className="p-2">
-                          <select className={fieldClassCompact} value={section.alignment} onChange={(e) => updateSection(section.key, { alignment: e.target.value as any })}>
-                            <option value="left">Left</option>
-                            <option value="center">Center</option>
-                            <option value="right">Right</option>
-                          </select>
-                        </td>
-                        <td className="p-2">
-                          <select className={fieldClassCompact} value={section.fontSize} onChange={(e) => updateSection(section.key, { fontSize: e.target.value as any })}>
-                            <option value="small">Small</option>
-                            <option value="normal">Normal</option>
-                            <option value="large">Large</option>
-                            <option value="xlarge">XLarge</option>
-                          </select>
-                        </td>
-                        <td className="p-2 text-center">
-                          <input type="checkbox" checked={section.enabled} onChange={(e) => updateSection(section.key, { enabled: e.target.checked })} className="accent-primary" />
-                        </td>
-                        <td className="p-2 text-center">
-                          <input type="checkbox" checked={section.bold} onChange={(e) => updateSection(section.key, { bold: e.target.checked })} className="accent-primary" />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div className="space-y-1.5">
+                  {orderedSections.map((section) => (
+                    <div
+                      key={section.key}
+                      className={cn(
+                        'grid grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)_56px_84px_84px_56px_56px] items-center gap-1.5 rounded-[0.85rem] border border-white/8 bg-white/[0.03] px-2.5 py-1.5',
+                        !section.enabled && 'opacity-55 grayscale-[0.35]',
+                      )}
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-[10px] font-black uppercase tracking-[0.06em] text-on-surface/80">{section.key}</p>
+                      </div>
+                      <input
+                        className={fieldClassCompact}
+                        value={section.customLabel ?? ''}
+                        placeholder={section.key}
+                        onChange={(e) => updateSection(section.key, { customLabel: e.target.value })}
+                      />
+                      <input
+                        className={cn(fieldClassCompact, 'text-center')}
+                        type="number"
+                        value={section.order}
+                        onChange={(e) => updateSection(section.key, { order: Number(e.target.value) })}
+                      />
+                      <select className={fieldClassCompact} value={section.alignment} onChange={(e) => updateSection(section.key, { alignment: e.target.value as any })}>
+                        <option value="left">Left</option>
+                        <option value="center">Center</option>
+                        <option value="right">Right</option>
+                      </select>
+                      <select className={fieldClassCompact} value={section.fontSize} onChange={(e) => updateSection(section.key, { fontSize: e.target.value as any })}>
+                        <option value="small">Small</option>
+                        <option value="normal">Normal</option>
+                        <option value="large">Large</option>
+                        <option value="xlarge">XLarge</option>
+                      </select>
+                      <div className="flex justify-center">
+                        <Switch checked={section.enabled} onChange={(checked) => updateSection(section.key, { enabled: checked })} ariaLabel={`Habilitar ${section.key}`} className="scale-[0.62] origin-center" />
+                      </div>
+                      <div className="flex justify-center">
+                        <Switch checked={section.bold} onChange={(checked) => updateSection(section.key, { bold: checked })} ariaLabel={`Negritas ${section.key}`} className="scale-[0.62] origin-center" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           ) : (
-            <div className="flex h-[calc(100%-48px)] items-center justify-center text-[9px] font-bold uppercase tracking-[0.12em] text-outline">
+            <div className="flex h-[calc(100%-76px)] items-center justify-center text-[11px] font-bold uppercase tracking-[0.12em] text-outline">
               Selecciona una plantilla para editar.
             </div>
           )}
         </div>
 
-        <div className="min-h-0 overflow-hidden border border-outline-variant/10 bg-surface-container-low shadow-xl">
-          <div className="border-b border-outline-variant/10 bg-surface-container-lowest px-3 py-2">
-            <p className="text-[8px] font-black uppercase tracking-[0.16em] text-on-surface">Preview y cola</p>
-            <p className="mt-1 text-[7px] font-bold uppercase tracking-[0.12em] text-outline">Vista previa, prueba y reimpresión</p>
+        <div className="admin-panel min-h-0 overflow-hidden">
+          <div className="flex items-center justify-between gap-2 border-b border-white/8 px-4 py-3">
+            <p className="admin-title !mt-0 text-[0.88rem] leading-none">Vista previa</p>
+            <ActionButton variant="secondary" size="sm" className="min-h-[2.15rem] px-2.5 !text-[9px]" onClick={() => printTest.mutate()} disabled={printTest.isPending}>
+              {printTest.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Printer className="w-3 h-3" />}
+              Prueba impresión
+            </ActionButton>
           </div>
-          <div className="grid h-[calc(100%-48px)] grid-rows-[auto_1fr_auto] gap-2 p-3">
-            <div className="border border-outline-variant/10 bg-surface-container-high p-2.5">
-              <div className="grid grid-cols-3 gap-2">
-                <Field label="Orden real">
-                  <input className={fieldClass} value={orderIdPreview} onChange={(e) => setOrderIdPreview(e.target.value.replace(/\D/g, ''))} placeholder="Ej. 123" />
-                </Field>
-                <Field label="Turno real">
-                  <input className={fieldClass} value={shiftIdPreview} onChange={(e) => setShiftIdPreview(e.target.value.replace(/\D/g, ''))} placeholder="Ej. 5" />
-                </Field>
-                <Field label="Movimiento">
-                  <input className={fieldClass} value={cashMovementIdPreview} onChange={(e) => setCashMovementIdPreview(e.target.value.replace(/\D/g, ''))} placeholder="Ej. 77" />
-                </Field>
-              </div>
-              <div className="mt-2 flex gap-1">
-                <ActionButton variant="secondary" size="sm" onClick={() => previewQuery.refetch()}>
-                  <Eye className="w-3 h-3" />
-                  Refrescar preview
-                </ActionButton>
-                <ActionButton variant="secondary" size="sm" onClick={() => printTest.mutate()} disabled={printTest.isPending}>
-                  {printTest.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Printer className="w-3 h-3" />}
-                  Prueba física
-                </ActionButton>
-              </div>
-            </div>
-
-              <div className="grid min-h-0 grid-rows-[1fr_auto] gap-2">
-                <div className="min-h-0 overflow-hidden border border-outline-variant/10 bg-surface-container-high">
-                  <div className="border-b border-outline-variant/10 px-3 py-2 text-[7px] font-black uppercase tracking-[0.14em] text-outline flex justify-between items-center">
-                    <span>{previewQuery.isLoading ? 'Generando preview...' : 'Vista previa'}</span>
-                    <span className="text-primary/70">{paperWidth}mm</span>
-                  </div>
-                  <div className="h-[calc(100%-33px)] overflow-y-auto whitespace-pre-wrap bg-[#fffdf8] px-4 py-4 font-mono text-[11px] leading-5 text-[#1a1a1a] shadow-inner custom-scrollbar selection:bg-primary/20">
-                    {previewQuery.data?.rendered?.previewText || 'Selecciona una plantilla.'}
-                  </div>
+          <div className="h-[calc(100%-88px)] p-3">
+              <div className="h-full min-h-0 overflow-hidden rounded-[1rem] border border-white/8 bg-white/[0.03]">
+                <div className="border-b border-white/8 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-outline flex justify-between items-center">
+                  <span>{previewQuery.isLoading ? 'Generando preview...' : 'Vista previa'}</span>
+                  <span className="text-primary/70">{paperWidth}mm</span>
                 </div>
+                <div className="h-[calc(100%-43px)] overflow-y-auto bg-[#f6f2ea] px-4 py-6 shadow-inner custom-scrollbar border-t border-gray-200/70">
+                  <div className="mx-auto border-x border-dashed border-gray-200 bg-white p-5 font-mono text-[#141414] shadow-[0_0_40px_rgba(0,0,0,0.05)]" style={{ width: paperWidth === '80' ? '320px' : '240px' }}>
+                    {visualPreviewSections.length > 0 ? (
+                      <div className="flex flex-col gap-1.5">
+                        {visualPreviewSections.map((section) => {
+                          const spacing = Math.max(0, Math.min(section.spacing ?? 0, 3));
+                          const lines = kitchenPreview ? getKitchenSampleLines(section) : getSampleLines(section);
 
-                <div className="min-h-0 overflow-hidden border border-outline-variant/10 bg-surface-container-high">
-                  <div className="border-b border-outline-variant/10 px-3 py-1.5 text-[7px] font-black uppercase tracking-[0.14em] text-outline flex justify-between items-center">
-                    <span>Historial</span>
-                    <ActionButton variant="secondary" size="sm" onClick={() => queryClient.invalidateQueries({ queryKey: ['print-jobs-admin'] })} className="h-5 px-1.5 !text-[6px]">
-                      Sync
-                    </ActionButton>
-                  </div>
-                  <div className="max-h-[160px] overflow-y-auto custom-scrollbar">
-                    {filteredJobs.map((job) => (
-                      <div key={job.id} className="border-b border-outline-variant/10 px-3 py-1.5 last:border-b-0 hover:bg-surface-container-highest transition-colors group">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="text-[7px] font-black uppercase text-on-surface">{job.documentType}</p>
-                            <p className="text-[6px] font-bold text-outline">
-                               {new Date(job.createdAt).toLocaleTimeString('es-MX', { hour12: false })} · {job.status}
-                            </p>
-                          </div>
-                          <button onClick={() => reprintJob.mutate(job.id)} disabled={reprintJob.isPending} className="p-1 text-outline hover:text-primary transition-colors">
-                            <History className="w-3 h-3" />
-                          </button>
-                        </div>
+                          if (lines.length === 0) {
+                            return null;
+                          }
+
+                          return (
+                            <React.Fragment key={section.key}>
+                              {section.dividerBefore ? <div className="border-t border-dashed border-black/55 pt-2" /> : null}
+                              <div
+                                className={cn(
+                                  'flex flex-col whitespace-pre-wrap',
+                                  FONT_SIZE_CLASS[section.fontSize],
+                                  ALIGN_CLASS[section.alignment],
+                                  section.bold && 'font-bold',
+                                )}
+                                style={{ marginBottom: `${spacing * 6}px` }}
+                              >
+                                {lines.map((line, index) => (
+                                  <div key={`${section.key}-${index}`} className="w-full">
+                                    {line}
+                                  </div>
+                                ))}
+                              </div>
+                              {section.dividerAfter ? <div className="border-t border-dashed border-black/55 pt-2" /> : null}
+                            </React.Fragment>
+                          );
+                        })}
                       </div>
-                    ))}
+                    ) : (
+                      <div className="text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-black/50">
+                        Seleccione una plantilla del catálogo para visualizar la simulación.
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
-
-            <div className="border border-outline-variant/10 bg-surface-container-high px-3 py-2">
-              <p className="text-[7px] font-black uppercase tracking-[0.14em] text-outline">
-                Documento seleccionado: {selectedTemplate?.documentType || documentType} · Papel {paperWidth}mm
-              </p>
-            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label className="mb-0.5 block text-[6px] font-black uppercase tracking-[0.12em] text-outline">{label}</label>
-      {children}
     </div>
   );
 }

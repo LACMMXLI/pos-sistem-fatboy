@@ -4,6 +4,7 @@ import { Lock, Mail, Loader2 } from 'lucide-react';
 import { login } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { toast } from 'sonner';
+import appLogo from '../../assets/icono.png';
 
 export function LoginScreen() {
   const [email, setEmail] = useState('admin@fatboy.com');
@@ -53,7 +54,7 @@ export function LoginScreen() {
         
         <div className="mb-1 flex h-44 w-44 items-center justify-center">
           <img
-            src="/icono.png"
+            src={appLogo}
             alt="Fatboy POS"
             className="h-full w-full object-contain drop-shadow-[0_0_24px_rgba(255,215,0,0.3)]"
           />

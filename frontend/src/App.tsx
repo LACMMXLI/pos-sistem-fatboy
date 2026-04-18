@@ -48,6 +48,7 @@ import {
 import { PaymentModal } from './components/Modals/PaymentModal';
 import { applyThemePreset, resolveThemePresetFromSettings } from './lib/theme';
 import { ChangeOverlay } from './components/Overlay/ChangeOverlay';
+import { ServerConnectionSetupScreen } from './views/Settings/ServerConnectionSetupScreen';
 
 // Layout Components
 import { NavButton } from './components/layout/NavButton';
@@ -136,6 +137,7 @@ export default function App() {
   const { restaurantName, setSettings, accentColor, panelColor, paperColor, inkColor, themePreset } = useSettingsStore();
   const { checkActiveShift } = useShiftStore();
   const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
+  const [settingsTab, setSettingsTab] = useState<string>('general');
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isNavVisible, setIsNavVisible] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -162,8 +164,12 @@ export default function App() {
   const canSeeSettings = isAdmin;
   const canSeePrinting = isAdmin || isSupervisor;
   const surface = new URLSearchParams(window.location.search).get('surface');
+  const setupMode = new URLSearchParams(window.location.search).get('mode');
+  const startupReason = new URLSearchParams(window.location.search).get('reason');
+  const startupError = new URLSearchParams(window.location.search).get('error');
   const isTabletSurface = surface === 'tablet';
   const isKitchenSurface = surface === 'kitchen';
+  const isServerConfigSurface = surface === 'server-config';
 
   useEffect(() => {
     if (!user) return;
@@ -236,14 +242,14 @@ export default function App() {
     switch (currentScreen) {
       case 'dashboard': return <DashboardScreen />;
       case 'sales': return <SalesScreen onPay={() => setIsPaymentModalOpen(true)} onRequireShift={() => setCurrentScreen('cashier')} isParentModalOpen={isPaymentModalOpen} />;
-      case 'floor': return <FloorPlanScreen />;
+      case 'floor': return <FloorPlanScreen onManage={() => { setSettingsTab('floorplan'); setCurrentScreen('settings'); }} />;
       case 'kitchen': return <KitchenScreen />;
       case 'customers': return <CustomersScreen />;
       case 'orders': return <OrdersScreen />;
       case 'cashier': return <CashierScreen />;
       case 'shift-history': return <ShiftHistoryScreen />;
       case 'time-clock': return <DigitalTimeClockScreen />;
-      case 'settings': return <SettingsScreen />;
+      case 'settings': return <SettingsScreen initialTab={settingsTab as any} />;
       case 'printing': return <PrintingCenterScreen />;
       case 'products': return <ProductsScreen />;
       case 'deliveries': return <DeliveriesScreen />;
@@ -258,6 +264,15 @@ export default function App() {
       <ChangeOverlay />
 
       {(() => {
+        if (isServerConfigSurface) {
+          return (
+            <ServerConnectionSetupScreen
+              mode={setupMode}
+              reason={startupReason}
+              errorMessage={startupError}
+            />
+          );
+        }
         if (isTabletSurface) return <TabletShell />;
         if (isKitchenSurface) return <KitchenShell />;
         if (!user) return <LoginScreen />;
@@ -286,6 +301,7 @@ export default function App() {
                   {canSeeOrders && <NavButton active={currentScreen === 'orders'} onClick={() => setCurrentScreen('orders')} icon={<ReceiptText className="w-3.5 h-3.5" />} label="Pedidos" />}
                   {canSeeKitchen && <NavButton active={currentScreen === 'kitchen'} onClick={() => setCurrentScreen('kitchen')} icon={<UtensilsCrossed className="w-3.5 h-3.5" />} label="Cocina" />}
                   {canSeeFloor && <NavButton active={currentScreen === 'floor'} onClick={() => setCurrentScreen('floor')} icon={<LayoutGrid className="w-3.5 h-3.5" />} label="Mesas" />}
+                  {canSeeDeliveries && <NavButton active={currentScreen === 'deliveries'} onClick={() => setCurrentScreen('deliveries')} icon={<Truck className="w-3.5 h-3.5" />} label="Entregas" />}
                   {canSeeCustomers && <NavButton active={currentScreen === 'customers'} onClick={() => setCurrentScreen('customers')} icon={<Users className="w-3.5 h-3.5" />} label="Clientes" />}
                   {canSeeChecker && <NavButton active={currentScreen === 'time-clock'} onClick={() => setCurrentScreen('time-clock')} icon={<Clock3 className="w-3.5 h-3.5" />} label="Asistencia" />}
                 </nav>

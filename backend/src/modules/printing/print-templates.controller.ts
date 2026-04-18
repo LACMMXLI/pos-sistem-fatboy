@@ -111,9 +111,22 @@ export class PrintTemplatesController {
   @ApiOperation({ summary: 'Genera una vista previa con datos reales o mock' })
   @ApiBody({ type: PrintTemplatePreviewDto })
   async preview(@Body() body: PrintTemplatePreviewDto) {
-    const template = body.templateId
-      ? await this.templatesService.findOne(body.templateId)
-      : await this.templatesService.getActiveTemplate(body.documentType, body.paperWidth);
+    let template: any;
+
+    if (body.sections) {
+      // Usar datos temporales proporcionados en el body
+      template = {
+        documentType: body.documentType,
+        paperWidth: body.paperWidth,
+        sections: body.sections,
+        fixedTexts: body.fixedTexts || {},
+        metadata: body.metadata || {},
+      };
+    } else if (body.templateId) {
+      template = await this.templatesService.findOne(body.templateId);
+    } else {
+      template = await this.templatesService.getActiveTemplate(body.documentType, body.paperWidth);
+    }
 
     let entityType = 'ORDER';
     let entityId = String(body.orderId ?? 1);

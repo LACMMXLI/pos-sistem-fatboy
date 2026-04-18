@@ -205,4 +205,21 @@ export class PrintTemplatePreviewDto {
   @IsOptional()
   @IsInt()
   cashMovementId?: number;
+
+  @ApiPropertyOptional({ type: [PrintTemplateSectionDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PrintTemplateSectionDto)
+  sections?: PrintTemplateSectionDto[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsObject()
+  fixedTexts?: Record<string, unknown> | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsObject()
+  metadata?: Record<string, unknown> | null;
 }

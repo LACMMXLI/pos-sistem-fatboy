@@ -11,6 +11,7 @@ import {
 import { toast } from 'sonner';
 import ActionButton from '../../components/ui/ActionButton';
 import ModalShell from '../../components/ui/ModalShell';
+import Switch from '../../components/ui/Switch';
 import { cn, formatCurrency } from '../../lib/utils';
 import { useAuthStore } from '../../store/authStore';
 import {
@@ -73,7 +74,7 @@ const emptyForm: EmployeeForm = {
 };
 
 const employeeFieldClassName =
-  'w-full bg-surface-container-highest border border-outline-variant/20 px-2 py-1.5 text-[10px] font-bold text-on-surface uppercase focus:border-primary outline-none transition-colors rounded-none';
+  'admin-input uppercase';
 
 export function EmployeesScreen() {
   const role = useAuthStore((state) => state.user?.role ?? '');
@@ -209,12 +210,14 @@ export function EmployeesScreen() {
   const selectedEmployee = employees.find((employee) => employee.id === selectedEmployeeId);
 
   return (
-    <div className="h-full p-1.5">
-      <div className="grid h-full grid-cols-12 gap-1.5 overflow-hidden">
+    <div className="admin-shell h-full p-4">
+      <div className="grid h-full grid-cols-12 gap-4 overflow-hidden">
         <div className="col-span-10 flex flex-col gap-1.5 overflow-hidden">
-          <div className="flex justify-between items-center mb-0.5">
-            <div className="text-[8px] font-bold uppercase tracking-widest text-outline">
-              Expedientes y movimientos
+          <div className="flex items-end justify-between gap-4 px-1">
+            <div>
+              <p className="admin-eyebrow">Gestión de equipo</p>
+              <h1 className="admin-title">Expedientes y movimientos</h1>
+              <p className="admin-subtitle">Más espacio útil para consultar, editar y registrar movimientos sin perder contexto.</p>
             </div>
             <div className="flex flex-wrap gap-1.5">
               <ActionButton
@@ -235,21 +238,21 @@ export function EmployeesScreen() {
             </div>
           </div>
 
-          <div className="grid grid-cols-4 gap-1.5">
+          <div className="grid grid-cols-4 gap-3">
             <TopMetric label="Empleado" value={selectedEmployee?.fullName || 'Sin selección'} />
             <TopMetric label="Sueldo" value={formatCurrency(selectedEmployee?.weeklySalary ?? 0)} />
             <TopMetric label="Pendiente" value={formatCurrency(selectedEmployee?.pendingBalance ?? 0)} />
             <TopMetric label="Movimientos" value={ledger.length.toString().padStart(2, '0')} />
           </div>
 
-          <div className="bg-surface-container-low overflow-hidden flex flex-col border border-outline-variant/10 shadow-xl min-h-0 flex-1">
+          <div className="admin-panel overflow-hidden flex flex-col min-h-0 flex-1">
             <div className="overflow-x-auto flex-1 custom-scrollbar">
               {isLoadingEmployees ? (
                 <div className="p-8 flex justify-center">
                   <Loader2 className="w-8 h-8 animate-spin text-primary" />
                 </div>
               ) : (
-                <table className="w-full table-auto border-collapse text-left">
+                <table className="admin-table table-auto">
                   <colgroup>
                     <col />
                     <col style={{ width: '1%' }} />
@@ -271,33 +274,30 @@ export function EmployeesScreen() {
                         <tr
                           key={employee.id}
                           onClick={() => setSelectedEmployeeId(employee.id)}
-                          className={cn(
-                            'hover:bg-surface-container-high transition-colors cursor-pointer group',
-                            isSelected && 'bg-surface-container-high border-l-4 border-primary',
-                          )}
+                          className={cn('cursor-pointer group', isSelected && 'bg-primary/8')}
                         >
-                          <td className="px-2 py-1.5">
-                            <div className="flex items-center gap-1.5">
-                              <div className={cn('w-7 h-7 bg-surface-container-highest flex items-center justify-center', isSelected ? 'text-primary border border-primary/20' : 'text-outline')}>
+                          <td>
+                            <div className="flex items-center gap-3">
+                              <div className={cn('flex h-11 w-11 items-center justify-center rounded-full border bg-white/[0.04]', isSelected ? 'border-primary/25 text-primary' : 'border-white/10 text-outline')}>
                                 <UserRound className="w-4 h-4" />
                               </div>
                               <div>
-                                <div className="font-bold text-[10px] text-on-surface uppercase">{employee.fullName}</div>
-                                <div className="text-[7px] text-outline uppercase font-medium">Clave {employee.employeeCode} · ID: {employee.id}</div>
+                                <div className="font-bold text-[13px] text-on-surface uppercase">{employee.fullName}</div>
+                                <div className="text-[11px] text-outline uppercase font-medium">Clave {employee.employeeCode} · ID: {employee.id}</div>
                               </div>
                             </div>
                           </td>
-                          <td className="whitespace-nowrap px-2 py-1.5 text-[9px] font-black text-on-surface">
+                          <td className="whitespace-nowrap text-[13px] font-black text-on-surface">
                             {formatCurrency(employee.weeklySalary)}
                           </td>
-                          <td className="whitespace-nowrap px-2 py-1.5 text-[9px] font-black text-primary">
+                          <td className="whitespace-nowrap text-[13px] font-black text-primary">
                             {formatCurrency(employee.pendingBalance ?? 0)}
                           </td>
-                          <td className="whitespace-nowrap px-2 py-1.5">
+                          <td className="whitespace-nowrap">
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-1 min-w-0">
-                                <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', employee.isActive ? 'bg-primary shadow-[0_0_6px_rgba(255,215,0,0.6)]' : 'bg-outline/20')} />
-                                <span className={cn('text-[7px] font-bold uppercase text-on-surface truncate', !employee.isActive && 'opacity-40')}>
+                                <span className={cn('h-2 w-2 rounded-full shrink-0', employee.isActive ? 'bg-primary shadow-[0_0_8px_rgba(255,215,0,0.6)]' : 'bg-outline/20')} />
+                                <span className={cn('text-[11px] font-bold uppercase text-on-surface truncate', !employee.isActive && 'opacity-40')}>
                                   {employee.isActive ? 'Activo' : 'Inactivo'}
                                 </span>
                               </div>
@@ -317,7 +317,7 @@ export function EmployeesScreen() {
                                   setIsEmployeeModalOpen(true);
                                 }}
                                 disabled={!canManageEmployees}
-                                className="h-6 w-6 flex items-center justify-center border border-outline-variant/10 bg-surface-container-highest text-outline hover:text-white hover:border-primary/20 hover:bg-surface-container-high transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-outline transition-colors hover:border-primary/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 shrink-0"
                                 aria-label={`Editar ${employee.fullName}`}
                               >
                                 <PencilLine className="w-3 h-3" />
@@ -335,38 +335,38 @@ export function EmployeesScreen() {
         </div>
 
         <aside className="col-span-2 flex flex-col gap-1.5 overflow-hidden">
-          <div className="bg-surface-container-low flex flex-col h-full border border-outline-variant/10 shadow-2xl relative overflow-hidden">
-            <div className="p-2 border-b border-outline-variant/10 bg-surface-container-lowest">
+          <div className="admin-panel flex flex-col h-full relative overflow-hidden">
+            <div className="admin-section-header">
               <div className="flex justify-between items-start mb-1">
-                <span className="text-[7px] font-bold uppercase tracking-widest text-primary font-headline">Expediente</span>
-                <span className="text-[6px] font-bold py-0.5 px-1 bg-surface-container-highest text-outline border border-outline-variant/10">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-primary font-headline">Expediente</span>
+                <span className="admin-chip">
                   ID: #{employeeDetail?.id || '---'}
                 </span>
               </div>
-              <h2 className="font-headline font-black text-[11px] text-on-surface uppercase tracking-tight leading-none">
+              <h2 className="font-headline font-black text-[20px] text-on-surface uppercase tracking-tight leading-none">
                 {employeeDetail?.fullName || 'Seleccione empleado'}
               </h2>
-              <p className="text-outline text-[7px] font-bold uppercase flex items-center gap-1 mt-1">
+              <p className="text-outline text-[11px] font-semibold uppercase flex items-center gap-1 mt-2">
                 <ReceiptText className="w-2.5 h-2.5" />
                 {employeeDetail?.isActive ? 'Operativo' : 'Inactivo'}
               </p>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-2 space-y-3 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
               {isLoadingEmployeeDetail ? (
                 <div className="p-8 flex justify-center">
                   <Loader2 className="w-8 h-8 animate-spin text-primary" />
                 </div>
               ) : employeeDetail ? (
                 <>
-                  <div className="bg-surface-container-high border border-outline-variant/5 p-2 space-y-1.5">
+                  <div className="admin-card-muted p-3 space-y-3">
                     <InfoLine label="Clave checador" value={employeeDetail.employeeCode} />
                     <InfoLine label="Sueldo semanal" value={formatCurrency(employeeDetail.weeklySalary)} />
                     <InfoLine label="Saldo pendiente" value={formatCurrency(employeeDetail.pendingBalance ?? 0)} />
                     <InfoLine label="Notas" value={employeeDetail.notes || 'Sin notas'} multiline />
                   </div>
 
-                  <div className="grid grid-cols-3 gap-1.5">
+                  <div className="grid grid-cols-3 gap-2">
                     <ActionBox
                       label="Adelanto"
                       onClick={() => {
@@ -394,7 +394,7 @@ export function EmployeesScreen() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <h3 className="text-[8px] font-black text-outline uppercase tracking-[0.18em] mb-1 font-headline">
+                    <h3 className="text-[10px] font-black text-outline uppercase tracking-[0.18em] mb-1 font-headline">
                       Historial reciente
                     </h3>
                     {isLoadingLedger ? (
@@ -402,28 +402,28 @@ export function EmployeesScreen() {
                         <Loader2 className="w-6 h-6 animate-spin text-primary" />
                       </div>
                     ) : ledger.length === 0 ? (
-                      <div className="bg-surface-container-high border border-outline-variant/5 p-4 text-center">
-                        <p className="text-[8px] uppercase font-black text-outline tracking-widest">
+                      <div className="admin-card-muted p-4 text-center">
+                        <p className="text-[11px] uppercase font-black text-outline tracking-widest">
                           Sin movimientos
                         </p>
                       </div>
                     ) : (
                       ledger.slice(0, 8).map((entry) => (
-                        <div key={entry.id} className="bg-surface-container-high border border-outline-variant/5 p-1.5">
+                        <div key={entry.id} className="admin-card-muted p-3">
                           <div className="flex justify-between items-start gap-2">
                             <div>
-                              <p className="text-[8px] font-black uppercase text-on-surface">
+                              <p className="text-[11px] font-black uppercase text-on-surface">
                                 {entry.type.replaceAll('_', ' ')}
                               </p>
-                              <p className="text-[7px] uppercase font-bold text-outline tracking-widest">
+                              <p className="text-[10px] uppercase font-bold text-outline tracking-widest">
                                 {entry.entryDate.slice(0, 10)}
                               </p>
                             </div>
-                            <span className="text-[7px] font-black text-primary">
+                            <span className="text-[10px] font-black text-primary">
                               {formatCurrency(entry.amount)}
                             </span>
                           </div>
-                          <p className="mt-1 text-[7px] text-on-surface-variant uppercase line-clamp-2">{entry.description}</p>
+                          <p className="mt-2 text-[10px] text-on-surface-variant uppercase line-clamp-2">{entry.description}</p>
                         </div>
                       ))
                     )}
@@ -505,14 +505,17 @@ export function EmployeesScreen() {
                 className={`${employeeFieldClassName} resize-none`}
               />
             </FormField>
-            <label className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-on-surface">
-              <input
-                type="checkbox"
+            <div className="admin-toggle-surface">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-on-surface">Empleado activo</p>
+                <p className="mt-1 text-[11px] font-medium text-on-surface-variant">Define si aparece operativo en el sistema.</p>
+              </div>
+              <Switch
                 checked={employeeForm.isActive}
-                onChange={(event) => setEmployeeForm((current) => ({ ...current, isActive: event.target.checked }))}
+                onChange={(checked) => setEmployeeForm((current) => ({ ...current, isActive: checked }))}
+                ariaLabel="Empleado activo"
               />
-              Empleado activo
-            </label>
+            </div>
             <ActionButton
               onClick={() => saveEmployeeMutation.mutate()}
               disabled={
@@ -585,9 +588,9 @@ export function EmployeesScreen() {
 
 function TopMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-surface-container-low px-2 py-1.5 border-l-4 border-primary shadow-sm min-w-0">
-      <span className="block text-[7px] font-bold text-outline uppercase tracking-widest mb-0.5">{label}</span>
-      <span className="block text-[12px] font-headline font-black text-on-surface uppercase truncate">{value}</span>
+    <div className="admin-metric min-w-0">
+      <span className="admin-metric-label block">{label}</span>
+      <span className="admin-metric-value truncate uppercase">{value}</span>
     </div>
   );
 }
@@ -602,9 +605,9 @@ function InfoLine({
   multiline?: boolean;
 }) {
   return (
-    <div className={cn('border-b border-outline-variant/10 pb-1 last:border-b-0 last:pb-0', multiline && 'items-start')}>
-      <span className="block text-[7px] font-bold text-outline uppercase tracking-widest">{label}</span>
-      <span className="block text-[8px] font-black text-on-surface uppercase mt-1">{value}</span>
+    <div className={cn('border-b border-white/8 pb-2 last:border-b-0 last:pb-0', multiline && 'items-start')}>
+      <span className="block text-[10px] font-bold text-outline uppercase tracking-widest">{label}</span>
+      <span className="mt-1 block text-[11px] font-black text-on-surface uppercase">{value}</span>
     </div>
   );
 }
@@ -627,7 +630,7 @@ function ActionBox({ label, onClick, disabled }: { label: string; onClick: () =>
 function FormField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="text-[8px] font-bold uppercase tracking-widest text-outline mb-1 block">{label}</label>
+      <label className="admin-label">{label}</label>
       {children}
     </div>
   );
